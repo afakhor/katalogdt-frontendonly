@@ -1,27 +1,32 @@
 name: katalog_po
-description: Aplikasi Katalog Produk Open PO
+description: "A new Flutter project."
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  
-  # yang kita pakai di app PO
   intl: ^0.19.0
-  sqflite: ^2.3.2
+  sqflite: ^2.3.0
   path: ^1.9.0
   image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  # 1. Tambahkan package ini di dev_dependencies
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
 
+# 2. Tambahkan konfigurasi ini di bagian paling bawah (sejajar dengan baris flutter:)
+flutter_launcher_icons:
+  android: "launcher_icon"
+  image_path: "assets/images/logo.jpg"
+  adaptive_icon_background: "#FFFFFF" # Warna background jika logo kamu transparan/bulat
