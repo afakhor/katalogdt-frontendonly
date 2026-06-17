@@ -241,7 +241,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// --- HALAMAN 1: KATALOG (Sudah Adaptive Portrait & Landscape) ---
+// --- HALAMAN 1: KATALOG ---
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
@@ -304,7 +304,6 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 
   @override Widget build(BuildContext context){
-    // 1. Deteksi orientasi layar saat ini
     final mediaQuery = MediaQuery.of(context);
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
 
@@ -328,21 +327,21 @@ class _CatalogPageState extends State<CatalogPage> {
       ),
       body: products.isEmpty
        ? Container(
-            // KONDISI KOSONG: Gambar memenuhi layar penuh (Aman di Portrait & Landscape)
             width: double.infinity,
             height: double.infinity,
             decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/images/bgdt.png'),
                 fit: BoxFit.cover,
-                alignment: Alignment.center, // Potongan seimbang di tengah
+                alignment: Alignment.center,
               ),
             ),
-            child: const Center(
+            // DI SINI PERBAIKANNYA: Kata kunci 'const' dicopot dari Center agar tidak memicu eror pada Container internal
+            child: Center(
               child: Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.all(Radius.circular(12))),
-                child: Text(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.all(Radius.circular(12))),
+                child: const Text(
                   'Belum ada produk.\nTap Tambah Produk untuk input dari Galeri.', 
                   textAlign: TextAlign.center,
                   style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)
@@ -356,20 +355,17 @@ class _CatalogPageState extends State<CatalogPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // KONDISI ISI - Urutan Posisi 1: Banner bgdt.png yang dinamis
                     Container(
-                      // Jika landscape, tinggi disesuaikan memakai persentase layar agar tidak memotong paksa gambar
                       height: isLandscape ? mediaQuery.size.height * 0.5 : 240, 
                       width: double.infinity,
                       decoration: const BoxDecoration(
                         image: DecorationImage(
                           image: AssetImage('assets/images/bgdt.png'),
                           fit: BoxFit.cover,
-                          alignment: Alignment.center, // Fokus pemotongan merata di tengah gambar
+                          alignment: Alignment.center,
                         ),
                       ),
                     ),
-                    // Urutan Posisi 2: Array Kartu Produk mengikuti tepat di bawah banner
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -435,7 +431,6 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 }
-
 
 // --- FORM TAMBAH PRODUK ---
 class ProductFormPage extends StatefulWidget {
