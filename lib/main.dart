@@ -214,7 +214,7 @@ class KatalogPOApp extends StatelessWidget {
   const KatalogPOApp({super.key});
   @override Widget build(BuildContext context){
     return MaterialApp(
-      title: 'Katalog PO',
+      title: 'Katalog Produk DT',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE05A2C)), useMaterial3: true),
       home: const HomeShell(),
@@ -398,8 +398,8 @@ class _CatalogPageState extends State<CatalogPage> {
                                   const SizedBox(height: 6),
                                   Text(p.deskripsi),
                                   const SizedBox(height: 10),
-                                  const Text('Harga Penawaran Khusus', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                  Text(formatRp.format(p.hargaPenawaranKhusus), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                  const Text('Harga ke Toko', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                  Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                                   const SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
