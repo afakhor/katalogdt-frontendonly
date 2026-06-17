@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as p; // Menggunakan prefix 'p' untuk mencegah bentrokan variabel context
 import 'package:image_picker/image_picker.dart';
 
 final formatRp = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -103,7 +103,7 @@ class DBHelper {
   Future<Database> get database async {
     if (_db!= null) return _db!;
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'katalog_po.db');
+    final path = p.join(dbPath, 'katalog_po.db');
     _db = await openDatabase(path, version: 2, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE products(
@@ -159,7 +159,6 @@ class DBHelper {
     });
     return _db!;
   }
-
   // Produk
   Future<int> insertProduct(KatalogProduct p) async {
     final db = await database;
@@ -323,7 +322,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   final namaC = TextEditingController();
   final deskripsiC = TextEditingController();
   final hargaNormalC = TextEditingController();
-  final hargaPO C = TextEditingController();
+  final hargaPOC = TextEditingController(); // Memperbaiki typo nama variabel 'hargaPO C'
   final salesC = TextEditingController(text: 'Sales DT');
 
   Future<void> pickImage() async {
@@ -426,7 +425,6 @@ class _POFormPageState extends State<POFormPage> {
       if(mounted){ Navigator.pop(context, true); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PO tersimpan. Total ${formatRp.format(po.totalSemua)}'))); }
     }
   }
-
   @override Widget build(BuildContext context){
     return Scaffold(
       appBar: AppBar(title: Text(isEdit? 'Edit PO' : 'Open PO')),
@@ -444,7 +442,7 @@ class _POFormPageState extends State<POFormPage> {
               Expanded(child: TextFormField(initialValue: it.kuantiti.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'kuantiti:'), onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1))),
             ]),
             Align(alignment: Alignment.centerRight, child: Text('total produk: ${formatRp.format(it.totalProduk)}', style: const TextStyle(fontWeight: FontWeight.w600))),
-          ]))),
+          ]))); // Memperbaiki penutup kurung dan menambahkan titik koma untuk return di dalam map
         }),
         OutlinedButton.icon(onPressed: ()=>setState(()=>items.add(POItem(namaProduk: '', hargaSatuan: 0))), icon: const Icon(Icons.add), label: const Text('Tambah item')),
         const Divider(height: 32),
