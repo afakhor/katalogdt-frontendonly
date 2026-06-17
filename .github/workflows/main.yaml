@@ -28,7 +28,8 @@ jobs:
       - name: Reset & Rebuild Folder Android (Biar Fresh V2)
         run: |
           rm -rf android
-          flutter create . --platforms=android
+          flutter create . --platforms=android --project-name=produkdt
+
 
       - name: Ambil Dependencies App
         run: flutter pub get
