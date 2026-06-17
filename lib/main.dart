@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart'; // 1. PERBAIKAN: Impor pelokalan bahasa
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:image_picker/image_picker.dart';
@@ -11,7 +12,12 @@ String globalSalesId = 'Sales DT';
 final formatRp = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 final formatTanggal = DateFormat('dd MMM yyyy', 'id_ID');
 
-void main() { runApp(const KatalogPOApp()); }
+// 2. PERBAIKAN: Ubah main() menjadi async untuk mengaktifkan format tanggal Indonesia
+void main() async { 
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null); // Aktifkan kalender & nama bulan Indonesia
+  runApp(const KatalogPOApp()); 
+}
 
 // --- MODEL KATALOG ---
 class KatalogProduct {
@@ -219,7 +225,6 @@ class _HomeShellState extends State<HomeShell> {
 
   @override Widget build(BuildContext context){
     return Scaffold(
-      // PERBAIKAN UTAMA: Mengganti IndexedStack menjadi pemanggilan langsung agar halaman me-refresh total saat berpindah tab menu
       body: index == 0 ? const CatalogPage() : const HistoryPage(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
@@ -547,7 +552,7 @@ class _POFormPageState extends State<POFormPage> {
 class HistoryPage extends StatefulWidget { const HistoryPage({super.key}); @override State<HistoryPage> createState()=>_HistoryPageState();}
 class _HistoryPageState extends State<HistoryPage> {
   List<POHistory> history = []; bool loading = true;
-  @override void initState(){ super.initState(); loadHistory(); }
+  @override void initState()){ super.initState(); loadHistory(); }
   
   Future<void> loadHistory() async { 
     if(!mounted) return;
