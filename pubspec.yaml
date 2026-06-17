@@ -28,5 +28,5 @@ flutter:
 # 2. Tambahkan konfigurasi ini di bagian paling bawah (sejajar dengan baris flutter:)
 flutter_launcher_icons:
   android: "launcher_icon"
-  image_path: "assets/images/logo.jpg"
+  image_path: "assets/images/logo.png"
   adaptive_icon_background: "#FFFFFF" # Warna background jika logo kamu transparan/bulat
