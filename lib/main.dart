@@ -102,14 +102,14 @@ class POHistory {
   int get totalSemua => items.fold(0, (s,e)=>s+e.totalProduk);
 }
 
-// --- DB HELPER (Perbaikan Skema Upgrade v3) ---
+// --- DB HELPER ---
 class DBHelper {
   DBHelper._(); static final DBHelper instance = DBHelper._();
   Database? _db;
   Future<Database> get database async {
     if (_db!= null) return _db!;
     final dbPath = await getDatabasesPath();
-    final path = p.join(dbPath, 'katalog_po_v3.db'); // Ganti nama file DB agar fresh dan terhindar dari bentrokan versi lama
+    final path = p.join(dbPath, 'katalog_po_v3.db');
     _db = await openDatabase(path, version: 1, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE products(
@@ -220,7 +220,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override Widget build(BuildContext context){
     return Scaffold(
-      body: IndexedStack(index: index, children: pages), // Mempertahankan state halaman saat pindah tab
+      body: IndexedStack(index: index, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i)=>setState(()=>index=i),
@@ -233,7 +233,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// --- HALAMAN 1: KATALOG (ID Sales Global ada di sini) ---
+// --- HALAMAN 1: KATALOG ---
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
@@ -359,7 +359,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       kategori: 'Umum',
       hargaNormal: int.tryParse(hargaNormalC.text)?? 0,
       hargaPenawaranKhusus: int.tryParse(hargaPOC.text)?? 0,
-      salesId: globalSalesId, // Otomatis mengunci ID Sales global saat ini
+      salesId: globalSalesId,
     );
     await DBHelper.instance.insertProduct(p);
     if(mounted){ Navigator.pop(context, true); }
@@ -395,7 +395,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   }
 }
 
-// --- FORM PO (Pilihan item Dropdown & Watermark ID Sales) ---
+// --- FORM PO ---
 class POFormPage extends StatefulWidget {
   final KatalogProduct? pilihProdukAwal;
   final POHistory? editPO;
@@ -462,7 +462,6 @@ class _POFormPageState extends State<POFormPage> {
       appBar: AppBar(title: Text(isEdit? 'Edit PO' : 'Open PO')),
       body: Stack(
         children: [
-          // WATERMARK ID SALES DI BELAKANG FORM
           Positioned.fill(
             child: Center(
               child: Opacity(
@@ -482,7 +481,6 @@ class _POFormPageState extends State<POFormPage> {
                 margin: const EdgeInsets.symmetric(vertical: 8), 
                 child: Padding(padding: const EdgeInsets.all(12), 
                 child: Column(children: [
-                  // DROPDOWN SELEKSI BARANG KATALOG
                   DropdownButtonFormField<String>(
                     value: listProdukKatalog.any((p) => p.namaProduk == it.namaProduk) ? it.namaProduk : null,
                     decoration: const InputDecoration(labelText: "Pilih Item Produk", border: UnderlineInputBorder()),
@@ -510,7 +508,7 @@ class _POFormPageState extends State<POFormPage> {
                     Expanded(child: TextFormField(initialValue: it.kuantiti.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Kuantiti:'), onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1))),
                   ]),
                   Align(alignment: Alignment.centerRight, child: Padding(
-                    padding: const EdgeInsets.top(8.0),
+                    padding: const EdgeInsets.only(top: 8.0), // PERBAIKAN DI SINI
                     child: Text('Total Produk: ${formatRp.format(it.totalProduk)}', style: const TextStyle(fontWeight: FontWeight.w600)),
                   )),
                 ])));
@@ -531,7 +529,7 @@ class _POFormPageState extends State<POFormPage> {
   }
 }
 
-// --- HALAMAN 2: HISTORY (Watermark ID Sales Bisa Ditekan Untuk Edit) ---
+// --- HALAMAN 2: HISTORY ---
 class HistoryPage extends StatefulWidget { const HistoryPage({super.key}); @override State<HistoryPage> createState()=>_HistoryPageState();}
 class _HistoryPageState extends State<HistoryPage> {
   List<POHistory> history = []; bool loading = true;
@@ -569,23 +567,21 @@ class _HistoryPageState extends State<HistoryPage> {
                     clipBehavior: Clip.antiAlias,
                     child: Stack(
                       children: [
-                        // WATERMARK ID SALES DI DALAM CARD (BISA DITEKAN UNTUK EDIT PO)
                         Positioned(
                           right: 15,
                           top: 10,
                           child: GestureDetector(
-                            onTap: () => editPO(po), // Tekan watermark langsung buka form edit
+                            onTap: () => editPO(po),
                             child: Opacity(
                               opacity: 0.12,
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
-                                child: Text(po.salesId, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.black, color: Colors.black)),
+                                child: Text(po.salesId, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black)), // PERBAIKAN DI SINI
                               ),
                             ),
                           ),
                         ),
-                        // ISI UTAMA DATA PO
                         ExpansionTile(
                           title: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: Text('${po.items.length} item - Klik watermark "${po.salesId}" untuk Edit', style: const TextStyle(fontSize: 11, color: Colors.black54)),
