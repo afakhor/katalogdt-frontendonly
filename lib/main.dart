@@ -216,11 +216,11 @@ class KatalogPOApp extends StatelessWidget {
 class HomeShell extends StatefulWidget { const HomeShell({super.key}); @override State<HomeShell> createState()=>_HomeShellState();}
 class _HomeShellState extends State<HomeShell> {
   int index = 0;
-  final List<Widget> pages = [const CatalogPage(), const HistoryPage()];
 
   @override Widget build(BuildContext context){
     return Scaffold(
-      body: IndexedStack(index: index, children: pages),
+      // PERBAIKAN UTAMA: Mengganti IndexedStack menjadi pemanggilan langsung agar halaman me-refresh total saat berpindah tab menu
+      body: index == 0 ? const CatalogPage() : const HistoryPage(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i)=>setState(()=>index=i),
@@ -241,9 +241,6 @@ class _CatalogPageState extends State<CatalogPage> {
   Future<void> loadProducts() async {
     final list = await DBHelper.instance.getProducts();
     setState(()=> products = list);
-  }
-  void openPO(KatalogProduct p) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_)=> const POFormPage()));
   }
   Future<void> addProduct() async {
     final saved = await Navigator.push(context, MaterialPageRoute(builder: (_)=> const ProductFormPage()));
@@ -362,7 +359,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
       salesId: globalSalesId,
     );
     await DBHelper.instance.insertProduct(p);
-    if(mounted){ Navigator.pop(context, true); }
+    if(mounted){ 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Produk berhasil ditambahkan ke Katalog!'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context, true); 
+    }
   }
 
   @override Widget build(BuildContext context){
@@ -433,7 +435,9 @@ class _POFormPageState extends State<POFormPage> {
 
   Future<void> simpan() async {
     if(items.any((element) => element.namaProduk.isEmpty)){
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih barang terlebih dahulu!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Gagal: Pilih barang terlebih dahulu!'), backgroundColor: Colors.red),
+      );
       return;
     }
     if(isEdit){
@@ -441,7 +445,12 @@ class _POFormPageState extends State<POFormPage> {
       po.namaToko = namaTokoController.text;
       po.items = items;
       await DBHelper.instance.updatePO(po);
-      if(mounted){ Navigator.pop(context, true); }
+      if(mounted){ 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ PO Berhasil Diperbarui!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context, true); 
+      }
     } else {
       final po = POHistory(
         poCode: 'PO-${DateTime.now().millisecondsSinceEpoch}',
@@ -451,7 +460,12 @@ class _POFormPageState extends State<POFormPage> {
         salesId: globalSalesId,
       );
       await DBHelper.instance.insertPO(po);
-      if(mounted){ Navigator.pop(context, true); }
+      if(mounted){ 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ PO Berhasil Disimpan!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context, true); 
+      }
     }
   }
 
@@ -508,7 +522,7 @@ class _POFormPageState extends State<POFormPage> {
                     Expanded(child: TextFormField(initialValue: it.kuantiti.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Kuantiti:'), onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1))),
                   ]),
                   Align(alignment: Alignment.centerRight, child: Padding(
-                    padding: const EdgeInsets.only(top: 8.0), // PERBAIKAN DI SINI
+                    padding: const EdgeInsets.only(top: 8.0),
                     child: Text('Total Produk: ${formatRp.format(it.totalProduk)}', style: const TextStyle(fontWeight: FontWeight.w600)),
                   )),
                 ])));
@@ -577,7 +591,7 @@ class _HistoryPageState extends State<HistoryPage> {
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
-                                child: Text(po.salesId, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black)), // PERBAIKAN DI SINI
+                                child: Text(po.salesId, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black)),
                               ),
                             ),
                           ),
