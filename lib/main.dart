@@ -237,7 +237,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// --- HALAMAN 1: KATALOG ---
+// --- HALAMAN 1: KATALOG (Dengan Fitur Scrollview & Background Conditional) ---
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
@@ -292,44 +292,80 @@ class _CatalogPageState extends State<CatalogPage> {
         label: const Text('Tambah Produk'),
       ),
       body: products.isEmpty
-       ? const Center(child: Text('Belum ada produk.\nTap Tambah Produk untuk input dari Galeri.', textAlign: TextAlign.center))
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: products.length,
-            itemBuilder: (context, i){
-              final p = products[i];
-              Widget imageWidget;
-              if(p.imagePath!= null && File(p.imagePath!).existsSync()){
-                imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
-              } else {
-                imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
-              }
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                clipBehavior: Clip.antiAlias,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  AspectRatio(aspectRatio: 16/9, child: imageWidget),
-                  Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-                      const SizedBox(height: 6),
-                      Text(p.deskripsi),
-                      const SizedBox(height: 10),
-                      const Text('Harga Penawaran Khusus', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(formatRp.format(p.hargaPenawaranKhusus), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      FilledButton.icon(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
-                        icon: const Icon(Icons.edit_note), 
-                        label: const Text('Buat PO')
-                      ),
-                    ]),
-                  )
-                ]),
-              );
-            }),
+       ? Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/bgdt.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                'Belum ada produk.\nTap Tambah Produk untuk input dari Galeri.', 
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w500)
+              ),
+            ),
+          )
+        : SingleChildScrollView(
+            child: Stack(
+              children: [
+                // Background Image yang tingginya semenghabis layar awal, ikut scroll ke atas sampai hilang ke appbar
+                Container(
+                  height: MediaQuery.of(context).size.height,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/bgdt.png'),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                    ),
+                  ),
+                ),
+                // Daftar List Kartu Produk di atas Background Image
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: products.map((p) {
+                      Widget imageWidget;
+                      if(p.imagePath!= null && File(p.imagePath!).existsSync()){
+                        imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
+                      } else {
+                        imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
+                      }
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          AspectRatio(aspectRatio: 16/9, child: imageWidget),
+                          Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
+                              const SizedBox(height: 6),
+                              Text(p.deskripsi),
+                              const SizedBox(height: 10),
+                              const Text('Harga Penawaran Khusus', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              Text(formatRp.format(p.hargaPenawaranKhusus), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 8),
+                              FilledButton.icon(
+                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
+                                icon: const Icon(Icons.edit_note), 
+                                label: const Text('Buat PO')
+                              ),
+                            ]),
+                          )
+                        ]),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
     );
   }
 }
@@ -551,7 +587,7 @@ class _POFormPageState extends State<POFormPage> {
 class HistoryPage extends StatefulWidget { const HistoryPage({super.key}); @override State<HistoryPage> createState()=>_HistoryPageState();}
 class _HistoryPageState extends State<HistoryPage> {
   List<POHistory> history = []; bool loading = true;
-  @override void initState() { super.initState(); loadHistory(); } // PERBAIKAN: Typo kurung tutup dibersihkan di sini
+  @override void initState() { super.initState(); loadHistory(); }
   
   Future<void> loadHistory() async { 
     if(!mounted) return;
@@ -586,23 +622,32 @@ class _HistoryPageState extends State<HistoryPage> {
                     child: Stack(
                       children: [
                         Positioned(
-                          right: 15,
-                          top: 10,
-                          child: GestureDetector(
-                            onTap: () => editPO(po),
-                            child: Opacity(
-                              opacity: 0.12,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
-                                child: Text(po.salesId, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black)),
-                              ),
+                          right: 60,
+                          top: 14,
+                          child: Opacity(
+                            opacity: 0.08,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
+                              child: Text(po.salesId, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black)),
                             ),
                           ),
                         ),
                         ExpansionTile(
-                          title: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text('${po.items.length} item - Klik watermark "${po.salesId}" untuk Edit', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_note, color: Colors.blue, size: 24),
+                                tooltip: 'Edit PO ini',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => editPO(po),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text('${po.items.length} item - Sales: ${po.salesId}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
                           trailing: Text(formatRp.format(po.totalSemua), style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFE05A2C))),
                           children: po.items.map((it)=>ListTile(
                             dense: true,
