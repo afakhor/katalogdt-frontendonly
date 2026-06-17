@@ -2,18 +2,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p; // Menggunakan prefix 'p' untuk mencegah bentrokan variabel context
+import 'package:path/path.dart' as p;
 import 'package:image_picker/image_picker.dart';
+
+// Variabel Global untuk ID Sales agar cukup diset sekali saja
+String globalSalesId = 'Sales DT';
 
 final formatRp = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 final formatTanggal = DateFormat('dd MMM yyyy', 'id_ID');
 
 void main() { runApp(const KatalogPOApp()); }
 
-// --- MODEL KATALOG, gambar dari galeri ---
+// --- MODEL KATALOG ---
 class KatalogProduct {
   int? dbId;
-  String? imagePath; // <-- dari galeri, bukan https
+  String? imagePath; 
   String namaProduk;
   String deskripsi;
   String kategori;
@@ -32,7 +35,7 @@ class KatalogProduct {
     required this.kategori,
     required this.hargaNormal,
     required this.hargaPenawaranKhusus,
-    this.salesId = 'Sales DT',
+    required this.salesId,
     this.sku = '',
     this.stok = 0,
     this.satuan = 'pcs',
@@ -54,7 +57,7 @@ class KatalogProduct {
   factory KatalogProduct.fromMap(Map<String, dynamic> m) => KatalogProduct(
     dbId: m['id'],
     imagePath: m['image_path'],
-    namaProduk: m['nama_produk'],
+    namaProduk: m['nama_produk'] ?? '',
     deskripsi: m['deskripsi']?? '',
     kategori: m['kategori']?? '',
     hargaNormal: m['harga_normal']?? 0,
@@ -80,7 +83,10 @@ class POItem {
     'kuantiti': kuantiti,
   };
   factory POItem.fromMap(Map<String, dynamic> m) => POItem(
-    id: m['id'], namaProduk: m['nama_produk'], hargaSatuan: m['harga_satuan'], kuantiti: m['kuantiti']
+    id: m['id'], 
+    namaProduk: m['nama_produk'] ?? '', 
+    hargaSatuan: m['harga_satuan'] ?? 0, 
+    kuantiti: m['kuantiti'] ?? 1
   );
   POItem copy() => POItem(namaProduk: namaProduk, hargaSatuan: hargaSatuan, kuantiti: kuantiti);
 }
@@ -96,15 +102,15 @@ class POHistory {
   int get totalSemua => items.fold(0, (s,e)=>s+e.totalProduk);
 }
 
-// --- DB HELPER, sqlite only, no Google Sheet ---
+// --- DB HELPER (Perbaikan Skema Upgrade v3) ---
 class DBHelper {
   DBHelper._(); static final DBHelper instance = DBHelper._();
   Database? _db;
   Future<Database> get database async {
     if (_db!= null) return _db!;
     final dbPath = await getDatabasesPath();
-    final path = p.join(dbPath, 'katalog_po.db');
-    _db = await openDatabase(path, version: 2, onCreate: (db, version) async {
+    final path = p.join(dbPath, 'katalog_po_v3.db'); // Ganti nama file DB agar fresh dan terhindar dari bentrokan versi lama
+    _db = await openDatabase(path, version: 1, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE products(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,27 +145,10 @@ class DBHelper {
           FOREIGN KEY(po_id) REFERENCES po_headers(id) ON DELETE CASCADE
         )
       ''');
-    }, onUpgrade: (db, oldV, newV) async {
-      if(oldV < 2){
-        await db.execute('''
-        CREATE TABLE IF NOT EXISTS products(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          image_path TEXT,
-          nama_produk TEXT,
-          deskripsi TEXT,
-          kategori TEXT,
-          harga_normal INTEGER,
-          harga_penawaran INTEGER,
-          sales_id TEXT,
-          sku TEXT,
-          stok INTEGER,
-          satuan TEXT
-        )''');
-      }
     });
     return _db!;
   }
-  // Produk
+
   Future<int> insertProduct(KatalogProduct p) async {
     final db = await database;
     return db.insert('products', p.toMap());
@@ -170,7 +159,6 @@ class DBHelper {
     return rows.map((m) => KatalogProduct.fromMap(m)).toList();
   }
 
-  // PO
   Future<int> insertPO(POHistory po) async {
     final db = await database;
     final poId = await db.insert('po_headers', {
@@ -186,7 +174,6 @@ class DBHelper {
     final db = await database;
     if(po.dbId == null) return;
     await db.update('po_headers', {
-      'tanggal': DateTime.now().toIso8601String(),
       'nama_toko': po.namaToko,
       'sales_id': po.salesId,
     }, where: 'id =?', whereArgs: [po.dbId]);
@@ -195,7 +182,7 @@ class DBHelper {
   }
   Future<List<POHistory>> getAllPO() async {
     final db = await database;
-    final headers = await db.query('po_headers', orderBy: 'tanggal DESC');
+    final headers = await db.query('po_headers', orderBy: 'id DESC');
     List<POHistory> result = [];
     for(final h in headers){
       final poId = h['id'] as int;
@@ -213,7 +200,7 @@ class DBHelper {
   }
 }
 
-// --- APP ---
+// --- APP Shell ---
 class KatalogPOApp extends StatelessWidget {
   const KatalogPOApp({super.key});
   @override Widget build(BuildContext context){
@@ -229,10 +216,11 @@ class KatalogPOApp extends StatelessWidget {
 class HomeShell extends StatefulWidget { const HomeShell({super.key}); @override State<HomeShell> createState()=>_HomeShellState();}
 class _HomeShellState extends State<HomeShell> {
   int index = 0;
+  final List<Widget> pages = [const CatalogPage(), const HistoryPage()];
+
   @override Widget build(BuildContext context){
-    final pages = [const CatalogPage(), const HistoryPage()];
     return Scaffold(
-      body: pages[index],
+      body: IndexedStack(index: index, children: pages), // Mempertahankan state halaman saat pindah tab
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i)=>setState(()=>index=i),
@@ -245,7 +233,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// --- HALAMAN 1: KATALOG, gambar dari galeri ---
+// --- HALAMAN 1: KATALOG (ID Sales Global ada di sini) ---
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
@@ -255,16 +243,48 @@ class _CatalogPageState extends State<CatalogPage> {
     setState(()=> products = list);
   }
   void openPO(KatalogProduct p) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(product: p)));
-    setState((){});
+    await Navigator.push(context, MaterialPageRoute(builder: (_)=> const POFormPage()));
   }
   Future<void> addProduct() async {
     final saved = await Navigator.push(context, MaterialPageRoute(builder: (_)=> const ProductFormPage()));
     if(saved == true) loadProducts();
   }
+
+  void ubahSalesId() {
+    final controller = TextEditingController(text: globalSalesId);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set ID Sales Global'),
+        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'ID Sales Baru')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () {
+              setState(() { globalSalesId = controller.text; });
+              Navigator.pop(ctx);
+            },
+            child: const Text('Simpan'),
+          )
+        ],
+      ),
+    );
+  }
+
   @override Widget build(BuildContext context){
     return Scaffold(
-      appBar: AppBar(title: const Text('Katalog Produk', style: TextStyle(fontWeight: FontWeight.w700))),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Katalog Produk', style: TextStyle(fontWeight: FontWeight.w700)),
+            Text('ID Sales Aktif: $globalSalesId', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          ],
+        ),
+        actions: [
+          IconButton(icon: const Icon(Icons.account_circle, size: 30), tooltip: 'Atur ID Sales', onPressed: ubahSalesId),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: addProduct,
         icon: const Icon(Icons.add_a_photo),
@@ -292,17 +312,18 @@ class _CatalogPageState extends State<CatalogPage> {
                   Padding(
                     padding: const EdgeInsets.all(14),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      InkWell(
-                        onTap: ()=>openPO(p),
-                        child: Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-                      ),
+                      Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
                       const SizedBox(height: 6),
                       Text(p.deskripsi),
                       const SizedBox(height: 10),
-                      Text('Harga Penawaran Khusus ${p.salesId}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      const Text('Harga Penawaran Khusus', style: TextStyle(fontSize: 12, color: Colors.black54)),
                       Text(formatRp.format(p.hargaPenawaranKhusus), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 8),
-                      FilledButton.icon(onPressed: ()=>openPO(p), icon: const Icon(Icons.edit_note), label: const Text('Buat PO')),
+                      FilledButton.icon(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
+                        icon: const Icon(Icons.edit_note), 
+                        label: const Text('Buat PO')
+                      ),
                     ]),
                   )
                 ]),
@@ -312,7 +333,7 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-// --- FORM TAMBAH PRODUK, gambar dari galeri ---
+// --- FORM TAMBAH PRODUK ---
 class ProductFormPage extends StatefulWidget {
   const ProductFormPage({super.key});
   @override State<ProductFormPage> createState()=>_ProductFormPageState();
@@ -322,8 +343,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   final namaC = TextEditingController();
   final deskripsiC = TextEditingController();
   final hargaNormalC = TextEditingController();
-  final hargaPOC = TextEditingController(); // Memperbaiki typo nama variabel 'hargaPO C'
-  final salesC = TextEditingController(text: 'Sales DT');
+  final hargaPOC = TextEditingController();
 
   Future<void> pickImage() async {
     final picker = ImagePicker();
@@ -339,7 +359,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       kategori: 'Umum',
       hargaNormal: int.tryParse(hargaNormalC.text)?? 0,
       hargaPenawaranKhusus: int.tryParse(hargaPOC.text)?? 0,
-      salesId: salesC.text,
+      salesId: globalSalesId, // Otomatis mengunci ID Sales global saat ini
     );
     await DBHelper.instance.insertProduct(p);
     if(mounted){ Navigator.pop(context, true); }
@@ -361,144 +381,228 @@ class _ProductFormPageState extends State<ProductFormPage> {
           ),
         ),
         const SizedBox(height: 16),
-        TextField(controller: namaC, decoration: const InputDecoration(labelText: "nama produk", border: OutlineInputBorder())),
+        TextField(controller: namaC, decoration: const InputDecoration(labelText: "Nama Produk", border: OutlineInputBorder())),
         const SizedBox(height: 12),
-        TextField(controller: deskripsiC, decoration: const InputDecoration(labelText: "deskripsi", border: OutlineInputBorder()), maxLines: 3),
+        TextField(controller: deskripsiC, decoration: const InputDecoration(labelText: "Deskripsi", border: OutlineInputBorder()), maxLines: 3),
         const SizedBox(height: 12),
         TextField(controller: hargaNormalC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Harga Normal", border: OutlineInputBorder())),
         const SizedBox(height: 12),
         TextField(controller: hargaPOC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Harga Penawaran Khusus", border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: salesC, decoration: const InputDecoration(labelText: "{ id nama sales }", border: OutlineInputBorder())),
         const SizedBox(height: 20),
-        FilledButton(onPressed: save, child: const Text('Simpan Produk')),
+        FilledButton(onPressed: save, child: const Text('Simpan ke Katalog')),
       ]),
     );
   }
 }
 
-// --- FORM PO, sama seperti sebelumnya, sqlite ---
+// --- FORM PO (Pilihan item Dropdown & Watermark ID Sales) ---
 class POFormPage extends StatefulWidget {
-  final KatalogProduct? product;
+  final KatalogProduct? pilihProdukAwal;
   final POHistory? editPO;
-  const POFormPage({super.key, this.product, this.editPO});
+  const POFormPage({super.key, this.pilihProdukAwal, this.editPO});
   @override State<POFormPage> createState()=>_POFormPageState();
 }
 class _POFormPageState extends State<POFormPage> {
   late List<POItem> items;
+  List<KatalogProduct> listProdukKatalog = [];
   final namaTokoController = TextEditingController();
-  late TextEditingController salesController;
   bool get isEdit => widget.editPO!= null;
 
   @override void initState(){
     super.initState();
+    loadKatalogOptions();
     if(isEdit){
       final po = widget.editPO!;
       namaTokoController.text = po.namaToko;
-      salesController = TextEditingController(text: po.salesId);
       items = po.items.map((e)=>e.copy()).toList();
     } else {
-      final p = widget.product!;
-      salesController = TextEditingController(text: p.salesId);
-      items = [POItem(namaProduk: p.namaProduk, hargaSatuan: p.hargaPenawaranKhusus)];
+      if(widget.pilihProdukAwal != null){
+        items = [POItem(namaProduk: widget.pilihProdukAwal!.namaProduk, hargaSatuan: widget.pilihProdukAwal!.hargaPenawaranKhusus)];
+      } else {
+        items = [POItem(namaProduk: '', hargaSatuan: 0)];
+      }
     }
   }
+
+  Future<void> loadKatalogOptions() async {
+    final prods = await DBHelper.instance.getProducts();
+    setState(() { listProdukKatalog = prods; });
+  }
+
   int get totalSemua => items.fold(0,(s,e)=>s+e.totalProduk);
 
   Future<void> simpan() async {
+    if(items.any((element) => element.namaProduk.isEmpty)){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih barang terlebih dahulu!')));
+      return;
+    }
     if(isEdit){
       final po = widget.editPO!;
       po.namaToko = namaTokoController.text;
       po.items = items;
-      po.salesId = salesController.text;
       await DBHelper.instance.updatePO(po);
-      if(mounted){ Navigator.pop(context, true); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PO berhasil diupdate'))); }
+      if(mounted){ Navigator.pop(context, true); }
     } else {
       final po = POHistory(
         poCode: 'PO-${DateTime.now().millisecondsSinceEpoch}',
         tanggal: DateTime.now(),
         namaToko: namaTokoController.text.isEmpty? 'Toko Tanpa Nama' : namaTokoController.text,
-        items: items.map((e)=>e.copy()).toList(),
-        salesId: salesController.text,
+        items: items,
+        salesId: globalSalesId,
       );
       await DBHelper.instance.insertPO(po);
-      if(mounted){ Navigator.pop(context, true); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PO tersimpan. Total ${formatRp.format(po.totalSemua)}'))); }
+      if(mounted){ Navigator.pop(context, true); }
     }
   }
+
   @override Widget build(BuildContext context){
+    final activeSalesId = isEdit ? widget.editPO!.salesId : globalSalesId;
+
     return Scaffold(
       appBar: AppBar(title: Text(isEdit? 'Edit PO' : 'Open PO')),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
-        TextField(controller: namaTokoController, decoration: const InputDecoration(labelText: 'nama toko:', border: OutlineInputBorder())),
-        const SizedBox(height: 20),
-        const Text('Item PO:', style: TextStyle(fontWeight: FontWeight.w700)),
-       ...items.asMap().entries.map((e){
-          final it = e.value;
-          return Card(margin: const EdgeInsets.symmetric(vertical: 8), child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-            TextFormField(initialValue: it.namaProduk, decoration: const InputDecoration(labelText: "item 'nama produk':"), onChanged: (v)=>it.namaProduk=v),
-            Row(children: [
-              Expanded(child: TextFormField(initialValue: it.hargaSatuan.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'harga satuan:'), onChanged: (v)=>setState(()=>it.hargaSatuan=int.tryParse(v)??it.hargaSatuan))),
-              const SizedBox(width: 12),
-              Expanded(child: TextFormField(initialValue: it.kuantiti.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'kuantiti:'), onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1))),
+      body: Stack(
+        children: [
+          // WATERMARK ID SALES DI BELAKANG FORM
+          Positioned.fill(
+            child: Center(
+              child: Opacity(
+                opacity: 0.05,
+                child: Text(activeSalesId, style: const TextStyle(fontSize: 55, fontWeight: FontWeight.bold, color: Colors.black)),
+              ),
+            ),
+          ),
+          ListView(padding: const EdgeInsets.all(16), children: [
+            TextField(controller: namaTokoController, decoration: const InputDecoration(labelText: 'Nama Toko:', border: OutlineInputBorder())),
+            const SizedBox(height: 20),
+            const Text('Item PO (Opsi dari Katalog):', style: TextStyle(fontWeight: FontWeight.w700)),
+            ...items.asMap().entries.map((e){
+              final indexItem = e.key;
+              final it = e.value;
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8), 
+                child: Padding(padding: const EdgeInsets.all(12), 
+                child: Column(children: [
+                  // DROPDOWN SELEKSI BARANG KATALOG
+                  DropdownButtonFormField<String>(
+                    value: listProdukKatalog.any((p) => p.namaProduk == it.namaProduk) ? it.namaProduk : null,
+                    decoration: const InputDecoration(labelText: "Pilih Item Produk", border: UnderlineInputBorder()),
+                    hint: const Text("Pilih barang dari katalog"),
+                    items: listProdukKatalog.map((prod) {
+                      return DropdownMenuItem<String>(
+                        value: prod.namaProduk,
+                        child: Text(prod.namaProduk),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if(val != null) {
+                        final selected = listProdukKatalog.firstWhere((p) => p.namaProduk == val);
+                        setState(() {
+                          it.namaProduk = selected.namaProduk;
+                          it.hargaSatuan = selected.hargaPenawaranKhusus;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: TextFormField(key: Key('${indexItem}_harga_${it.hargaSatuan}'), initialValue: it.hargaSatuan.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Harga Satuan:'), onChanged: (v)=>setState(()=>it.hargaSatuan=int.tryParse(v)??it.hargaSatuan))),
+                    const SizedBox(width: 12),
+                    Expanded(child: TextFormField(initialValue: it.kuantiti.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Kuantiti:'), onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1))),
+                  ]),
+                  Align(alignment: Alignment.centerRight, child: Padding(
+                    padding: const EdgeInsets.top(8.0),
+                    child: Text('Total Produk: ${formatRp.format(it.totalProduk)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  )),
+                ])));
+            }),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(onPressed: ()=>setState(()=>items.add(POItem(namaProduk: '', hargaSatuan: 0))), icon: const Icon(Icons.add), label: const Text('Tambah Item')),
+            const Divider(height: 32),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text('Total Semua Produk:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(formatRp.format(totalSemua), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             ]),
-            Align(alignment: Alignment.centerRight, child: Text('total produk: ${formatRp.format(it.totalProduk)}', style: const TextStyle(fontWeight: FontWeight.w600))),
-          ]))); // Memperbaiki penutup kurung dan menambahkan titik koma untuk return di dalam map
-        }),
-        OutlinedButton.icon(onPressed: ()=>setState(()=>items.add(POItem(namaProduk: '', hargaSatuan: 0))), icon: const Icon(Icons.add), label: const Text('Tambah item')),
-        const Divider(height: 32),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Total Semua Produk:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          Text(formatRp.format(totalSemua), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-        ]),
-        const SizedBox(height: 16),
-        TextField(controller: salesController, decoration: const InputDecoration(labelText: '{ id nama sales }', border: OutlineInputBorder())),
-        const SizedBox(height: 20),
-        FilledButton(onPressed: simpan, child: Padding(padding: const EdgeInsets.all(12), child: Text(isEdit? 'Update PO' : 'Simpan PO'))),
-      ]),
+            const SizedBox(height: 30),
+            FilledButton(onPressed: simpan, child: Padding(padding: const EdgeInsets.all(12), child: Text(isEdit? 'Update & Simpan PO' : 'Simpan PO Baru'))),
+          ]),
+        ],
+      ),
     );
   }
 }
 
-// --- HALAMAN 2: HISTORY ---
+// --- HALAMAN 2: HISTORY (Watermark ID Sales Bisa Ditekan Untuk Edit) ---
 class HistoryPage extends StatefulWidget { const HistoryPage({super.key}); @override State<HistoryPage> createState()=>_HistoryPageState();}
 class _HistoryPageState extends State<HistoryPage> {
   List<POHistory> history = []; bool loading = true;
   @override void initState(){ super.initState(); loadHistory(); }
-  Future<void> loadHistory() async { setState(()=>loading=true); history = await DBHelper.instance.getAllPO(); setState(()=>loading=false); }
-  Future<void> editPO(POHistory po) async { final updated = await Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(editPO: po))); if(updated == true) loadHistory(); }
+  
+  Future<void> loadHistory() async { 
+    if(!mounted) return;
+    setState(()=>loading=true); 
+    final list = await DBHelper.instance.getAllPO(); 
+    if(!mounted) return;
+    setState(() { history = list; loading = false; }); 
+  }
+  
+  Future<void> editPO(POHistory po) async { 
+    final updated = await Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(editPO: po))); 
+    if(updated == true) loadHistory(); 
+  }
+
   @override Widget build(BuildContext context){
     final Map<String, List<POHistory>> grouped = {};
     for(final po in history){ final key = formatTanggal.format(po.tanggal); grouped.putIfAbsent(key, ()=>[]).add(po); }
+    
     return Scaffold(
       appBar: AppBar(title: const Text('History PO', style: TextStyle(fontWeight: FontWeight.w700))),
       body: loading? const Center(child: CircularProgressIndicator())
-        : history.isEmpty? const Center(child: Text('Belum ada PO tersimpan'))
+        : history.isEmpty? const Center(child: Text('Belum ada PO tersimpan.\nPastikan data katalog & PO diisi dengan benar.'))
         : RefreshIndicator(
             onRefresh: loadHistory,
-            child: ListView(padding: const EdgeInsets.all(16), children: grouped.entries.map((entry){
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-               ...entry.value.map((po)=> Card(child: ExpansionTile(
-                  title: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                    Text('${po.items.length} item'),
-                    ActionChip(
-                      label: Text(po.salesId),
-                      avatar: const Icon(Icons.edit, size: 16),
-                      onPressed: ()=>editPO(po),
+            child: ListView(
+              padding: const EdgeInsets.all(16), 
+              children: grouped.entries.map((entry){
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+                  ...entry.value.map((po)=> Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      children: [
+                        // WATERMARK ID SALES DI DALAM CARD (BISA DITEKAN UNTUK EDIT PO)
+                        Positioned(
+                          right: 15,
+                          top: 10,
+                          child: GestureDetector(
+                            onTap: () => editPO(po), // Tekan watermark langsung buka form edit
+                            child: Opacity(
+                              opacity: 0.12,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
+                                child: Text(po.salesId, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.black, color: Colors.black)),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // ISI UTAMA DATA PO
+                        ExpansionTile(
+                          title: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text('${po.items.length} item - Klik watermark "${po.salesId}" untuk Edit', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                          trailing: Text(formatRp.format(po.totalSemua), style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFE05A2C))),
+                          children: po.items.map((it)=>ListTile(
+                            dense: true,
+                            title: Text(it.namaProduk),
+                            subtitle: Text('${it.kuantiti} x ${formatRp.format(it.hargaSatuan)}'),
+                            trailing: Text(formatRp.format(it.totalProduk)),
+                          )).toList(),
+                        ),
+                      ],
                     ),
-                  ]),
-                  trailing: Text(formatRp.format(po.totalSemua), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  children: po.items.map((it)=>ListTile(
-                    dense: true,
-                    title: Text(it.namaProduk),
-                    subtitle: Text('${it.kuantiti} x ${formatRp.format(it.hargaSatuan)}'),
-                    trailing: Text(formatRp.format(it.totalProduk)),
-                  )).toList(),
-                ))),
-                const SizedBox(height: 12),
-              ]);
-            }).toList()),
+                  )),
+                  const SizedBox(height: 12),
+                ]);
+              }).toList()),
           ),
     );
   }
