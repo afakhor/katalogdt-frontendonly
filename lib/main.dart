@@ -163,6 +163,10 @@ class DBHelper {
     final rows = await db.query('products', orderBy: 'id DESC');
     return rows.map((m) => KatalogProduct.fromMap(m)).toList();
   }
+  Future<int> deleteProduct(int id) async {
+    final db = await database;
+    return await db.delete('products', where: 'id = ?', whereArgs: [id]);
+  }
 
   Future<int> insertPO(POHistory po) async {
     final db = await database;
@@ -237,7 +241,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// --- HALAMAN 1: KATALOG (Dengan Fitur Scrollview & Background Conditional) ---
+// --- HALAMAN 1: KATALOG (Kondisi Urutan Sesuai Ralat) ---
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
@@ -272,6 +276,33 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 
+  void konfirmasiHapus(int? id) {
+    if (id == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Produk'),
+        content: const Text('Apakah Anda yakin ingin menghapus produk ini dari katalog?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+            onPressed: () async {
+              await DBHelper.instance.deleteProduct(id);
+              Navigator.pop(ctx);
+              loadProducts();
+              if(mounted){
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ Produk berhasil dihapus dari katalog!'), backgroundColor: Colors.redAccent),
+                );
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override Widget build(BuildContext context){
     return Scaffold(
       appBar: AppBar(
@@ -293,6 +324,7 @@ class _CatalogPageState extends State<CatalogPage> {
       ),
       body: products.isEmpty
        ? Container(
+            // KONDISI KOSONG: Gambar bgdt.png diam (fixed) memenuhi layar penuh
             width: double.infinity,
             height: double.infinity,
             decoration: const BoxDecoration(
@@ -302,66 +334,95 @@ class _CatalogPageState extends State<CatalogPage> {
               ),
             ),
             child: const Center(
-              child: Text(
-                'Belum ada produk.\nTap Tambah Produk untuk input dari Galeri.', 
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w500)
+              child: Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.all(Radius.circular(12))),
+                child: Text(
+                  'Belum ada produk.\nTap Tambah Produk untuk input dari Galeri.', 
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)
+                ),
               ),
             ),
           )
         : SingleChildScrollView(
+            // KONDISI ADA ISI: Menggunakan kombinasi SingleChildScrollView + Stack sesuai permintaan
             child: Stack(
               children: [
-                // Background Image yang tingginya semenghabis layar awal, ikut scroll ke atas sampai hilang ke appbar
-                Container(
-                  height: MediaQuery.of(context).size.height,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/bgdt.png'),
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Urutan Posisi 1: Gambar bgdt.png diletakkan paling atas (berperan sebagai banner iklan/latar pembuka)
+                    Container(
+                      height: 260, // Tinggi proporsional agar estetik di atas kartu produk
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage('assets/images/bgdt.png'),
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                // Daftar List Kartu Produk di atas Background Image
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: products.map((p) {
-                      Widget imageWidget;
-                      if(p.imagePath!= null && File(p.imagePath!).existsSync()){
-                        imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
-                      } else {
-                        imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
-                      }
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          AspectRatio(aspectRatio: 16/9, child: imageWidget),
-                          Padding(
-                            padding: const EdgeInsets.all(14),
+                    // Urutan Posisi 2: Array Kartu Produk diletakkan tepat mengikuti di bawah gambar bgdt.png
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: products.map((p) {
+                          Widget imageWidget;
+                          if(p.imagePath!= null && File(p.imagePath!).existsSync()){
+                            imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
+                          } else {
+                            imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
+                          }
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            clipBehavior: Clip.antiAlias,
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-                              const SizedBox(height: 6),
-                              Text(p.deskripsi),
-                              const SizedBox(height: 10),
-                              const Text('Harga Penawaran Khusus', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                              Text(formatRp.format(p.hargaPenawaranKhusus), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 8),
-                              FilledButton.icon(
-                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
-                                icon: const Icon(Icons.edit_note), 
-                                label: const Text('Buat PO')
+                              AspectRatio(
+                                aspectRatio: 16/9, 
+                                child: InteractiveViewer(
+                                  panEnabled: true, 
+                                  scaleEnabled: true,
+                                  minScale: 1.0,
+                                  maxScale: 4.0,
+                                  child: imageWidget,
+                                ),
                               ),
+                              Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
+                                  const SizedBox(height: 6),
+                                  Text(p.deskripsi),
+                                  const SizedBox(height: 10),
+                                  const Text('Harga Penawaran Khusus', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                  Text(formatRp.format(p.hargaPenawaranKhusus), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
+                                        icon: const Icon(Icons.edit_note), 
+                                        label: const Text('Buat PO')
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                        tooltip: 'Hapus Produk',
+                                        onPressed: () => konfirmasiHapus(p.dbId),
+                                      ),
+                                    ],
+                                  ),
+                                ]),
+                              )
                             ]),
-                          )
-                        ]),
-                      );
-                    }).toList(),
-                  ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
