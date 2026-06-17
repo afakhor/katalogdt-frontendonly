@@ -1,4 +1,4 @@
-package com.example.produkdt
+package com.example.katalog_po
 
 import io.flutter.embedding.android.FlutterActivity
 
