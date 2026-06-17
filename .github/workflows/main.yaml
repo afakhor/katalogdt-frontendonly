@@ -1,0 +1,38 @@
+name: Auto Deploy Flutter Web
+
+on:
+  push:
+    branches:
+      - main # Workflow berjalan setiap kali kamu push ke branch main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil Source Code
+        uses: actions/checkout@v4
+
+      - name: Set Up Java (Diperlukan Flutter)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set Up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.19.0' # Menyesuaikan dengan versi Flutter SDK kamu
+
+      - name: Ambil Dependencies App
+        run: flutter pub get
+
+      - name: Build Flutter Web Otomatis
+        run: flutter build web --base-href "/katalogdt-frontendonly/"
+
+      - name: Lempar Hasil Build ke GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: build/web
+          branch: gh-pages # Hasil build otomatis dikirim ke sini
