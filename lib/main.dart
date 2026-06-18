@@ -7,7 +7,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:image_picker/image_picker.dart';
 
-String globalSalesId = 'Sales DT';
+String globalSalesId = 'Heruwingchun';
 
 final formatRp = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 final formatTanggal = DateFormat('dd MMM yyyy', 'id_ID');
@@ -246,7 +246,7 @@ class KatalogPOApp extends StatelessWidget {
   const KatalogPOApp({super.key});
   @override Widget build(BuildContext context){
     return MaterialApp(
-      title: 'Katalog PO',
+      title: 'KATALOG+PO BABE PERKAKAS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE05A2C)), useMaterial3: true),
       home: const HomeShell(),
