@@ -1,4 +1,4 @@
-name: Build Android APK
+Name: Build Android APK
 
 on:
   push:
@@ -26,16 +26,22 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          # Mengosongkan versi akan otomatis menggunakan Flutter stable versi terbaru
 
       # 4. Unduh semua package/dependencies yang terdaftar di pubspec.yaml
       - name: Install Dependencies
         run: flutter pub get
 
+      # =======================================================================
+      # LANGKAH BARU: Mengubah Package Name secara otomatis sebelum proses build
+      # =======================================================================
+      - name: Ganti Package Name Otomatis
+        run: |
+          flutter pub add dev:change_app_package_name
+          flutter pub run change_app_package_name:main com.heruwingchun.babeinfo
+
       # 5. Jalankan perintah generate icon jika kamu menggunakan flutter_launcher_icons
       - name: Generate Launcher Icons
         run: flutter pub run flutter_launcher_icons || true 
-        # Ditambahkan '|| true' agar build tidak gagal jika package belum siap atau terjadi error minor icon
 
       # 6. Proses kompilasi menjadi APK rilis resmi
       - name: Build APK Release
