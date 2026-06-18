@@ -276,11 +276,31 @@ class _HomeShellState extends State<HomeShell> {
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
+  
+  // 1. TAMBAHKAN VARIABEL STATE BARU DI SINI
+  String searchQuery = '';
+  bool isSortedAZ = false;
+
   @override void initState(){ super.initState(); loadProducts(); }
   
   Future<void> loadProducts() async {
     final list = await DBHelper.instance.getProducts();
     setState(()=> products = list);
+  }
+  
+  // 2. JUGA BUAT GETTER UNTUK MEMPROSES FILTER & SORT SECARA DINAMIS
+  List<KatalogProduct> get displayProducts {
+    // Proses Filter berdasarkan Nama Produk
+    List<KatalogProduct> filtered = products.where((p) {
+      return p.namaProduk.toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+
+    // Proses Urutan (Sort A-Z) jika aktif
+    if (isSortedAZ) {
+      filtered.sort((a, b) => a.namaProduk.toLowerCase().compareTo(b.namaProduk.toLowerCase()));
+    }
+    
+    return filtered;
   }
   
   Future<void> addProduct() async {
@@ -386,62 +406,111 @@ class _CatalogPageState extends State<CatalogPage> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    children: products.map((p) {
-                      Widget imageWidget;
-                      if(p.imagePath!= null && File(p.imagePath!).existsSync()){
-                        imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
-                      } else {
-                        imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
-                      }
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          AspectRatio(
-                            aspectRatio: 16/9, 
-                            child: InteractiveViewer(child: imageWidget),
+                    children: [
+                      
+                      // 3. UI BARU: KOMPONEN SEARCH BAR & TOMBOL SORT A-Z
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              keyboardAppearance: Brightness.light,
+                              decoration: InputDecoration(
+                                hintText: 'Cari nama produk...',
+                                prefixIcon: const Icon(Icons.search),
+                                suffixIcon: searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () => setState(() => searchQuery = ''),
+                                      )
+                                    : null,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                              ),
+                              onChanged: (val) => setState(() => searchQuery = val),
+                            ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-                              const SizedBox(height: 6),
-                              Text(p.deskripsi),
-                              const SizedBox(height: 10),
-                              const Text('Harga Umum', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                              Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            icon: Icon(isSortedAZ ? Icons.sort_by_alpha : Icons.import_export),
+                            isSelected: isSortedAZ,
+                            onPressed: () => setState(() => isSortedAZ = !isSortedAZ),
+                            tooltip: isSortedAZ ? 'Urutan: A-Z' : 'Urutan: Default',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 4. LOGIKAL FILTER KETIKA HASIL PENCARIAN KOSONG
+                      if (displayProducts.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          child: Column(
+                            children: [
+                              Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
                               const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  FilledButton.icon(
-                                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
-                                    icon: const Icon(Icons.edit_note), 
-                                    label: const Text('Buat PO')
-                                  ),
+                              Text('Produk "$searchQuery" tidak ditemukan', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        )
+                      else
+                        // Gunakan displayProducts (bukan products langsung) agar filter aktif
+                        ...displayProducts.map((p) {
+                          Widget imageWidget;
+                          if(p.imagePath!= null && File(p.imagePath!).existsSync()){
+                            imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
+                          } else {
+                            imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
+                          }
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              AspectRatio(
+                                aspectRatio: 16/9, 
+                                child: InteractiveViewer(child: imageWidget),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
+                                  const SizedBox(height: 6),
+                                  Text(p.deskripsi),
+                                  const SizedBox(height: 10),
+                                  const Text('Harga Umum', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                  Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 8),
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
-                                        tooltip: 'Edit / Revisi Produk',
-                                        onPressed: () => editProduct(p),
+                                      FilledButton.icon(
+                                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(pilihProdukAwal: p))), 
+                                        icon: const Icon(Icons.edit_note), 
+                                        label: const Text('Buat PO')
                                       ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
-                                        tooltip: 'Hapus Produk',
-                                        onPressed: () => konfirmasiHapus(p.dbId),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
+                                            tooltip: 'Edit / Revisi Produk',
+                                            onPressed: () => editProduct(p),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
+                                            tooltip: 'Hapus Produk',
+                                            onPressed: () => konfirmasiHapus(p.dbId),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
+                                ]),
+                              )
                             ]),
-                          )
-                        ]),
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
+                    ],
                   ),
                 ),
               ],
@@ -450,7 +519,6 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 }
-
 // --- FORM TAMBAH & EDIT PRODUK ---
 class ProductFormPage extends StatefulWidget {
   final KatalogProduct? editProduct; 
