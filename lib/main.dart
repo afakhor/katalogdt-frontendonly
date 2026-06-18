@@ -356,7 +356,7 @@ class _CatalogPageState extends State<CatalogPage> {
             child: Center(
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(12))),
+                decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(12)),
                 child: const Text('Belum ada produk.\nTap Tambah Produk untuk mulai.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
@@ -408,7 +408,6 @@ class _CatalogPageState extends State<CatalogPage> {
                                   ),
                                   Row(
                                     children: [
-                                      // 🖊️ Tombol Pensil Biru Mantap Di Sini
                                       IconButton(
                                         icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
                                         tooltip: 'Edit / Revisi Produk',
@@ -506,7 +505,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
     return Scaffold(
       appBar: AppBar(title: Text(isEdit ? 'Edit / Revisi Produk' : 'Tambah Produk')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        // Kotak Gambar Statis Aman dari Ketukan Tidak Sengaja
         Container(
           height: 180,
           decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(16)),
@@ -517,7 +515,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
         ),
         const SizedBox(height: 10),
         
-        // Tombol Khusus untuk Buka Galeri
         ElevatedButton.icon(
           onPressed: pickImage, 
           icon: const Icon(Icons.add_a_photo), 
