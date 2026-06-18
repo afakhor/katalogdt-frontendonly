@@ -1,4 +1,4 @@
-Name: Build Android APK
+name: Build Android APK
 
 on:
   push:
@@ -37,11 +37,11 @@ jobs:
       - name: Ganti Package Name Otomatis
         run: |
           flutter pub add dev:change_app_package_name
-          flutter pub run change_app_package_name:main com.heruwingchun.babeinfo
+          dart run change_app_package_name:main com.heruwingchun.babeinfo
 
       # 5. Jalankan perintah generate icon jika kamu menggunakan flutter_launcher_icons
       - name: Generate Launcher Icons
-        run: flutter pub run flutter_launcher_icons || true 
+        run: dart run flutter_launcher_icons || true 
 
       # 6. Proses kompilasi menjadi APK rilis resmi
       - name: Build APK Release
