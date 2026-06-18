@@ -274,36 +274,41 @@ class _HomeShellState extends State<HomeShell> {
 
 // --- HALAMAN KATALOG ---
 class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
+Class CatalogPage extends StatefulWidget { const CatalogPage({super.key}); @override State<CatalogPage> createState()=>_CatalogPageState();}
 class _CatalogPageState extends State<CatalogPage> {
   List<KatalogProduct> products = [];
   
-  // 1. TAMBAHKAN VARIABEL STATE BARU DI SINI
   String searchQuery = '';
   bool isSortedAZ = false;
+  
+  // 1. TAMBAHKAN CONTROLLER DI SINI
+  final searchController = TextEditingController();
 
   @override void initState(){ super.initState(); loadProducts(); }
+  
+  // 2. JANGAN LUPA DISPOSE BIAR GAK LEAK MEMORI
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
   
   Future<void> loadProducts() async {
     final list = await DBHelper.instance.getProducts();
     setState(()=> products = list);
   }
   
-  // 2. JUGA BUAT GETTER UNTUK MEMPROSES FILTER & SORT SECARA DINAMIS
   List<KatalogProduct> get displayProducts {
-    // Proses Filter berdasarkan Nama Produk
     List<KatalogProduct> filtered = products.where((p) {
       return p.namaProduk.toLowerCase().contains(searchQuery.toLowerCase());
     }).toList();
 
-    // Proses Urutan (Sort A-Z) jika aktif
     if (isSortedAZ) {
       filtered.sort((a, b) => a.namaProduk.toLowerCase().compareTo(b.namaProduk.toLowerCase()));
     }
-    
     return filtered;
   }
-  
-  Future<void> addProduct() async {
+   Future<void> addProduct() async {
     final saved = await Navigator.push(context, MaterialPageRoute(builder: (_)=> const ProductFormPage()));
     if(saved == true) loadProducts();
   }
@@ -361,7 +366,7 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 
-  @override Widget build(BuildContext context){
+    @override Widget build(BuildContext context){
     final mediaQuery = MediaQuery.of(context);
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
 
@@ -407,12 +412,13 @@ class _CatalogPageState extends State<CatalogPage> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      
-                      // 3. UI BARU: KOMPONEN SEARCH BAR & TOMBOL SORT A-Z
+
+                      // === BAGIAN BARU: SEKARANG COUPLING TEXTFIELD & TOMBOL SORT SUDAH MENYATU ===
                       Row(
                         children: [
                           Expanded(
                             child: TextField(
+                              controller: searchController, // <-- Controller terpasang aman di sini
                               keyboardAppearance: Brightness.light,
                               decoration: InputDecoration(
                                 hintText: 'Cari nama produk...',
@@ -420,7 +426,12 @@ class _CatalogPageState extends State<CatalogPage> {
                                 suffixIcon: searchQuery.isNotEmpty
                                     ? IconButton(
                                         icon: const Icon(Icons.clear),
-                                        onPressed: () => setState(() => searchQuery = ''),
+                                        onPressed: () {
+                                          setState(() {
+                                            searchQuery = '';
+                                            searchController.clear(); // <-- Bersihkan teks di layar saat X ditekan
+                                          });
+                                        },
                                       )
                                     : null,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -518,7 +529,7 @@ class _CatalogPageState extends State<CatalogPage> {
           ),
     );
   }
-}
+
 // --- FORM TAMBAH & EDIT PRODUK ---
 class ProductFormPage extends StatefulWidget {
   final KatalogProduct? editProduct; 
