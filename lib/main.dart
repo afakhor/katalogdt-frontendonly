@@ -87,17 +87,16 @@ class POItem {
   String namaProduk;
   int hargaSatuan;
   int kuantiti;
-  int angkaSatuan; // FITUR BARU: Pengali Satuan (misal: 1, 3, 4, 5, 6, 7)
+  int angkaSatuan; 
 
   POItem({
     this.id, 
     required this.namaProduk, 
     required this.hargaSatuan, 
     this.kuantiti = 1,
-    this.angkaSatuan = 1, // Default normal adalah 1
+    this.angkaSatuan = 1, 
   });
 
-  // RUMUS BARU: Item x Angka Satuan x Harga
   int get totalProduk => hargaSatuan * kuantiti * angkaSatuan;
 
   Map<String, dynamic> toMap(int poId) => {
@@ -105,7 +104,7 @@ class POItem {
     'nama_produk': namaProduk,
     'harga_satuan': hargaSatuan,
     'kuantiti': kuantiti,
-    'angka_satuan': angkaSatuan, // Simpan ke DB
+    'angka_satuan': angkaSatuan, 
   };
 
   factory POItem.fromMap(Map<String, dynamic> m) => POItem(
@@ -113,7 +112,7 @@ class POItem {
     namaProduk: m['nama_produk'] ?? '', 
     hargaSatuan: m['harga_satuan'] ?? 0, 
     kuantiti: m['kuantiti'] ?? 1,
-    angkaSatuan: m['angka_satuan'] ?? 1, // Ambil dari DB
+    angkaSatuan: m['angka_satuan'] ?? 1, 
   );
 
   POItem copy() => POItem(namaProduk: namaProduk, hargaSatuan: hargaSatuan, kuantiti: kuantiti, angkaSatuan: angkaSatuan);
@@ -137,7 +136,6 @@ class DBHelper {
   Future<Database> get database async {
     if (_db!= null) return _db!;
     final dbPath = await getDatabasesPath();
-    // Diubah ke v4 agar otomatis memperbarui struktur tabel po_items di HP
     final path = p.join(dbPath, 'katalog_po_v4.db');
     _db = await openDatabase(path, version: 1, onCreate: (db, version) async {
       await db.execute('''
@@ -647,64 +645,70 @@ class _POFormPageState extends State<POFormPage> {
               final it = e.value;
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8), 
-                child: Padding(padding: const EdgeInsets.all(12), 
-                child: Column(children: [
-                  DropdownButtonFormField<String>(
-                    value: listProdukKatalog.any((p) => p.namaProduk == it.namaProduk) ? it.namaProduk : null,
-                    decoration: const InputDecoration(labelText: "Pilih Item Produk", border: UnderlineInputBorder()),
-                    hint: const Text("Pilih barang dari katalog"),
-                    items: listProdukKatalog.map((prod) {
-                      return DropdownMenuItem<String>(value: prod.namaProduk, child: Text(prod.namaProduk));
-                    }).toList(),
-                    onChanged: (val) {
-                      if(val != null) {
-                        final selected = listProdukKatalog.firstWhere((p) => p.namaProduk == val);
-                        setState(() {
-                          it.namaProduk = selected.namaProduk;
-                          it.hargaSatuan = selected.hargaNormal;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  // Form input Harga Satuan
-                  TextFormField(
-                    key: Key('${indexItem}_harga_${it.hargaSatuan}'), 
-                    initialValue: it.hargaSatuan.toString(), 
-                    keyboardType: TextInputType.number, 
-                    decoration: const InputDecoration(labelText: 'Harga Satuan:', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), 
-                    onChanged: (v)=>setState(()=>it.hargaSatuan=int.tryParse(v)??it.hargaSatuan)
-                  ),
-                  const SizedBox(height: 12),
-                  // FITUR INPUT BARU: Kolom Angka Satuan & Kuantiti berdampingan
-                  Row(children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: it.angkaSatuan.toString(), 
+                child: Padding(
+                  padding: const EdgeInsets.all(12), 
+                  child: Column(
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: listProdukKatalog.any((p) => p.namaProduk == it.namaProduk) ? it.namaProduk : null,
+                        decoration: const InputDecoration(labelText: "Pilih Item Produk", border: UnderlineInputBorder()),
+                        hint: const Text("Pilih barang dari katalog"),
+                        items: listProdukKatalog.map((prod) {
+                          return DropdownMenuItem<String>(value: prod.namaProduk, child: Text(prod.namaProduk));
+                        }).toList(),
+                        onChanged: (val) {
+                          if(val != null) {
+                            final selected = listProdukKatalog.firstWhere((p) => p.namaProduk == val);
+                            setState(() {
+                              it.namaProduk = selected.namaProduk;
+                              it.hargaSatuan = selected.hargaNormal;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        key: Key('${indexItem}_harga_${it.hargaSatuan}'), 
+                        initialValue: it.hargaSatuan.toString(), 
                         keyboardType: TextInputType.number, 
-                        decoration: const InputDecoration(labelText: 'Angka Satuan:', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), hintText: '1, 3, 4, dll'), 
-                        onChanged: (v)=>setState(()=>it.angkaSatuan=int.tryParse(v)??1)
-                      )
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: it.kuantiti.toString(), 
-                        keyboardType: TextInputType.number, 
-                        decoration: const InputDecoration(labelText: 'Kuantiti (Item):', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), 
-                        onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1)
-                      )
-                    ),
-                  ]),
-                  const SizedBox(height: 6),
-                  Align(alignment: Alignment.centerRight, child: Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'Hitung: ${it.kuantiti} item x ${it.angkaSatuan} sat x ${formatRp.format(it.hargaSatuan)} = ${formatRp.format(it.totalProduk)}', 
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blackDE)
-                    ),
-                  )),
-                ])));
+                        decoration: const InputDecoration(labelText: 'Harga Satuan:', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), 
+                        onChanged: (v)=>setState(()=>it.hargaSatuan=int.tryParse(v)??it.hargaSatuan)
+                      ),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: it.angkaSatuan.toString(), 
+                            keyboardType: TextInputType.number, 
+                            decoration: const InputDecoration(labelText: 'Angka Satuan:', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), hintText: '1, 3, 4, dll'), 
+                            onChanged: (v)=>setState(()=>it.angkaSatuan=int.tryParse(v)??1)
+                          )
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: it.kuantiti.toString(), 
+                            keyboardType: TextInputType.number, 
+                            decoration: const InputDecoration(labelText: 'Kuantiti (Item):', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), 
+                            onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1)
+                          )
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight, 
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Hitung: ${it.kuantiti} item x ${it.angkaSatuan} sat x ${formatRp.format(it.hargaSatuan)} = ${formatRp.format(it.totalProduk)}', 
+                            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }),
             const SizedBox(height: 8),
             OutlinedButton.icon(onPressed: ()=>setState(()=>items.add(POItem(namaProduk: '', hargaSatuan: 0, angkaSatuan: 1))), icon: const Icon(Icons.add), label: const Text('Tambah Item')),
@@ -753,39 +757,59 @@ class _HistoryPageState extends State<HistoryPage> {
             onRefresh: loadHistory,
             child: ListView(
               padding: const EdgeInsets.all(16), 
-              children: grouped.entries.map((entry){
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-                  ...entry.value.map((po)=> Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          right: 60, top: 14,
-                          child: Opacity(
-                            opacity: 0.08,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
-                              child: Text(po.salesId, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+              children: grouped.entries.map<Widget>((entry){
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, 
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8), 
+                      child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    ),
+                    ...entry.value.map<Widget>((po)=> Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            right: 60, top: 14,
+                            child: Opacity(
+                              opacity: 0.08,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(4)),
+                                child: Text(po.salesId, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+                              ),
                             ),
                           ),
-                        ),
-                        ExpansionTile(
-                          title: Row(
-                            children: [
-                              Expanded(child: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600))),
-                              IconButton(
-                                icon: const Icon(Icons.edit_note, color: Colors.blue, size: 24),
-                                tooltip: 'Edit PO ini',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () => editPO(po),
-                              ),
-                            ],
+                          ExpansionTile(
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(po.namaToko, style: const TextStyle(fontWeight: FontWeight.w600))),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_note, color: Colors.blue, size: 24),
+                                  tooltip: 'Edit PO ini',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => editPO(po),
+                                ),
+                              ],
+                            ),
+                            subtitle: Text('${po.items.length} macam barang - Sales: ${po.salesId}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                            trailing: Text(formatRp.format(po.totalSemua), style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFE05A2C))),
+                            children: po.items.map<Widget>((it)=>ListTile(
+                              dense: true,
+                              title: Text(it.namaProduk),
+                              subtitle: Text('${it.kuantiti} item x ${it.angkaSatuan} sat x ${formatRp.format(it.hargaSatuan)}'),
+                              trailing: Text(formatRp.format(it.totalProduk)),
+                            )).toList(),
                           ),
-                          subtitle: Text('${po.items.length} macam barang - Sales: ${po.salesId}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
-                          trailing: Text(formatRp.format(po.totalSemua), style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFE05A2C))),
-                          children: po.items.map((it)=>ListTile(
-                            dense: true,
-                            title: Text(it.namaProduk),
-                            // TAMPILAN BARU HISTORY: Memunculkan rincian format perkalian "Item x Angka Satuan
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+    );
+  }
+}
