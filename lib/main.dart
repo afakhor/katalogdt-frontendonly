@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Tambahan untuk kontrol tema sistem HP
+import 'package:flutter/services.dart'; 
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart'; 
 import 'package:sqflite/sqflite.dart';
@@ -16,7 +16,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null); 
   
-  // Sinkronisasi warna Bar atas & bawah HP agar sewarna krem dengan aplikasi
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent, 
     statusBarIconBrightness: Brightness.dark, 
@@ -88,21 +87,36 @@ class POItem {
   String namaProduk;
   int hargaSatuan;
   int kuantiti;
-  POItem({this.id, required this.namaProduk, required this.hargaSatuan, this.kuantiti = 1});
-  int get totalProduk => hargaSatuan * kuantiti;
+  int angkaSatuan; // FITUR BARU: Pengali Satuan (misal: 1, 3, 4, 5, 6, 7)
+
+  POItem({
+    this.id, 
+    required this.namaProduk, 
+    required this.hargaSatuan, 
+    this.kuantiti = 1,
+    this.angkaSatuan = 1, // Default normal adalah 1
+  });
+
+  // RUMUS BARU: Item x Angka Satuan x Harga
+  int get totalProduk => hargaSatuan * kuantiti * angkaSatuan;
+
   Map<String, dynamic> toMap(int poId) => {
     'po_id': poId,
     'nama_produk': namaProduk,
     'harga_satuan': hargaSatuan,
     'kuantiti': kuantiti,
+    'angka_satuan': angkaSatuan, // Simpan ke DB
   };
+
   factory POItem.fromMap(Map<String, dynamic> m) => POItem(
     id: m['id'], 
     namaProduk: m['nama_produk'] ?? '', 
     hargaSatuan: m['harga_satuan'] ?? 0, 
-    kuantiti: m['kuantiti'] ?? 1
+    kuantiti: m['kuantiti'] ?? 1,
+    angkaSatuan: m['angka_satuan'] ?? 1, // Ambil dari DB
   );
-  POItem copy() => POItem(namaProduk: namaProduk, hargaSatuan: hargaSatuan, kuantiti: kuantiti);
+
+  POItem copy() => POItem(namaProduk: namaProduk, hargaSatuan: hargaSatuan, kuantiti: kuantiti, angkaSatuan: angkaSatuan);
 }
 
 class POHistory {
@@ -123,7 +137,8 @@ class DBHelper {
   Future<Database> get database async {
     if (_db!= null) return _db!;
     final dbPath = await getDatabasesPath();
-    final path = p.join(dbPath, 'katalog_po_v3.db');
+    // Diubah ke v4 agar otomatis memperbarui struktur tabel po_items di HP
+    final path = p.join(dbPath, 'katalog_po_v4.db');
     _db = await openDatabase(path, version: 1, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE products(
@@ -156,6 +171,7 @@ class DBHelper {
           nama_produk TEXT,
           harga_satuan INTEGER,
           kuantiti INTEGER,
+          angka_satuan INTEGER, 
           FOREIGN KEY(po_id) REFERENCES po_headers(id) ON DELETE CASCADE
         )
       ''');
@@ -564,9 +580,9 @@ class _POFormPageState extends State<POFormPage> {
       items = po.items.map((e)=>e.copy()).toList();
     } else {
       if(widget.pilihProdukAwal != null){
-        items = [POItem(namaProduk: widget.pilihProdukAwal!.namaProduk, hargaSatuan: widget.pilihProdukAwal!.hargaNormal)];
+        items = [POItem(namaProduk: widget.pilihProdukAwal!.namaProduk, hargaSatuan: widget.pilihProdukAwal!.hargaNormal, angkaSatuan: 1)];
       } else {
-        items = [POItem(namaProduk: '', hargaSatuan: 0)];
+        items = [POItem(namaProduk: '', hargaSatuan: 0, angkaSatuan: 1)];
       }
     }
   }
@@ -650,20 +666,48 @@ class _POFormPageState extends State<POFormPage> {
                       }
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
+                  // Form input Harga Satuan
+                  TextFormField(
+                    key: Key('${indexItem}_harga_${it.hargaSatuan}'), 
+                    initialValue: it.hargaSatuan.toString(), 
+                    keyboardType: TextInputType.number, 
+                    decoration: const InputDecoration(labelText: 'Harga Satuan:', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), 
+                    onChanged: (v)=>setState(()=>it.hargaSatuan=int.tryParse(v)??it.hargaSatuan)
+                  ),
+                  const SizedBox(height: 12),
+                  // FITUR INPUT BARU: Kolom Angka Satuan & Kuantiti berdampingan
                   Row(children: [
-                    Expanded(child: TextFormField(key: Key('${indexItem}_harga_${it.hargaSatuan}'), initialValue: it.hargaSatuan.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Harga Satuan:'), onChanged: (v)=>setState(()=>it.hargaSatuan=int.tryParse(v)??it.hargaSatuan))),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: it.angkaSatuan.toString(), 
+                        keyboardType: TextInputType.number, 
+                        decoration: const InputDecoration(labelText: 'Angka Satuan:', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), hintText: '1, 3, 4, dll'), 
+                        onChanged: (v)=>setState(()=>it.angkaSatuan=int.tryParse(v)??1)
+                      )
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: TextFormField(initialValue: it.kuantiti.toString(), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Kuantiti:'), onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1))),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: it.kuantiti.toString(), 
+                        keyboardType: TextInputType.number, 
+                        decoration: const InputDecoration(labelText: 'Kuantiti (Item):', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), 
+                        onChanged: (v)=>setState(()=>it.kuantiti=int.tryParse(v)??1)
+                      )
+                    ),
                   ]),
+                  const SizedBox(height: 6),
                   Align(alignment: Alignment.centerRight, child: Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: Text('Total Produk: ${formatRp.format(it.totalProduk)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Hitung: ${it.kuantiti} item x ${it.angkaSatuan} sat x ${formatRp.format(it.hargaSatuan)} = ${formatRp.format(it.totalProduk)}', 
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blackDE)
+                    ),
                   )),
                 ])));
             }),
             const SizedBox(height: 8),
-            OutlinedButton.icon(onPressed: ()=>setState(()=>items.add(POItem(namaProduk: '', hargaSatuan: 0))), icon: const Icon(Icons.add), label: const Text('Tambah Item')),
+            OutlinedButton.icon(onPressed: ()=>setState(()=>items.add(POItem(namaProduk: '', hargaSatuan: 0, angkaSatuan: 1))), icon: const Icon(Icons.add), label: const Text('Tambah Item')),
             const Divider(height: 32),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               const Text('Total Semua Produk:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
@@ -739,22 +783,9 @@ class _HistoryPageState extends State<HistoryPage> {
                               ),
                             ],
                           ),
-                          subtitle: Text('${po.items.length} item - Sales: ${po.salesId}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                          subtitle: Text('${po.items.length} macam barang - Sales: ${po.salesId}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
                           trailing: Text(formatRp.format(po.totalSemua), style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFE05A2C))),
                           children: po.items.map((it)=>ListTile(
                             dense: true,
                             title: Text(it.namaProduk),
-                            subtitle: Text('${it.kuantiti} x ${formatRp.format(it.hargaSatuan)}'),
-                            trailing: Text(formatRp.format(it.totalProduk)),
-                          )).toList(),
-                        ),
-                      ],
-                    ),
-                  )),
-                  const SizedBox(height: 12),
-                ]);
-              }).toList()),
-          ),
-    );
-  }
-}
+                            // TAMPILAN BARU HISTORY: Memunculkan rincian format perkalian "Item x Angka Satuan
