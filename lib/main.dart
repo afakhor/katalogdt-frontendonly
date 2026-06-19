@@ -15,7 +15,7 @@ final formatTanggal = DateFormat('dd MMM yyyy', 'id_ID');
 void main() async { 
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null); 
-  
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent, 
     statusBarIconBrightness: Brightness.dark, 
@@ -24,6 +24,151 @@ void main() async {
   ));
 
   runApp(const KatalogPOApp()); 
+}
+
+// --- APP SHELL MAIN ---
+class KatalogPOApp extends StatelessWidget {
+  const KatalogPOApp({super.key});
+  @override Widget build(BuildContext context){
+    return MaterialApp(
+      title: 'KATALOG+PO BABE PERKAKAS',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE05A2C)), useMaterial3: true),
+      // PERBAIKAN 1: Aplikasi dimulai dari SplashScreen dahulu
+      home: const SplashScreen(), 
+    );
+  }
+}
+
+// --- SPLASH SCREEN ---
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Alignment> _alignmentAnimation;
+  bool _isAtCenter = false; 
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+
+    _alignmentAnimation = Tween<Alignment>(
+      begin: const Alignment(2.2 , 3.2), 
+      end: const Alignment(0.1 , -0.1),
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.fastOutSlowIn, 
+    ));
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) {
+          setState(() {
+            _isAtCenter = true;
+          });
+        }
+
+        // PERBAIKAN 2: Mengganti Timer dengan Future.delayed agar tidak perlu import dart:async
+        // Dan mengarahkan langsung ke HomeShell (Aplikasi Utama)
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeShell()), 
+            );
+          }
+        });
+      }
+    });
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF7F00FF), 
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF7F00FF),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'BABE PERKAKAS',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 20),
+        ),
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/splash.png', 
+              fit: BoxFit.cover,       
+            ),
+          ),
+          AnimatedBuilder(
+            animation: _alignmentAnimation,
+            builder: (context, child) {
+              return Align(
+                alignment: _alignmentAnimation.value,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300), 
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return ScaleTransition(scale: animation, child: child);
+                  },
+                  child: _isAtCenter
+                      ? const Text(
+                          '👆',
+                          key: ValueKey('finger_icon'),
+                          style: TextStyle(fontSize: 75), 
+                        )
+                      : const Text(
+                          '🛠️',
+                          key: ValueKey('tools_icon'),
+                          style: TextStyle(fontSize: 65), 
+                        ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- HOME SHELL NAVIGATION ---
+class HomeShell extends StatefulWidget { const HomeShell({super.key}); @override State<HomeShell> createState()=>_HomeShellState();}
+class _HomeShellState extends State<HomeShell> {
+  int index = 0;
+  @override Widget build(BuildContext context){
+    return Scaffold(
+      body: index == 0 ? const CatalogPage() : const HistoryPage(),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (i)=>setState(()=>index=i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Katalog'),
+          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'History PO'),
+        ],
+      ),
+    );
+  }
 }
 
 // --- MODEL KATALOG ---
@@ -181,7 +326,7 @@ class DBHelper {
     final db = await database;
     return db.insert('products', p.toMap());
   }
-  
+
   Future<int> updateProduct(KatalogProduct p) async {
     final db = await database;
     return await db.update('products', p.toMap(), where: 'id = ?', whereArgs: [p.dbId]);
@@ -192,7 +337,7 @@ class DBHelper {
     final rows = await db.query('products', orderBy: 'id DESC');
     return rows.map((m) => KatalogProduct.fromMap(m)).toList();
   }
-  
+
   Future<int> deleteProduct(int id) async {
     final db = await database;
     return await db.delete('products', where: 'id = ?', whereArgs: [id]);
@@ -209,7 +354,7 @@ class DBHelper {
     for(final it in po.items){ await db.insert('po_items', it.toMap(poId)); }
     return poId;
   }
-  
+
   Future<void> updatePO(POHistory po) async {
     final db = await database;
     if(po.dbId == null) return;
@@ -220,7 +365,7 @@ class DBHelper {
     await db.delete('po_items', where: 'po_id =?', whereArgs: [po.dbId]);
     for(final it in po.items){ await db.insert('po_items', it.toMap(po.dbId!)); }
   }
-  
+
   Future<List<POHistory>> getAllPO() async {
     final db = await database;
     final headers = await db.query('po_headers', orderBy: 'id DESC');
@@ -238,37 +383,6 @@ class DBHelper {
       ));
     }
     return result;
-  }
-}
-
-// --- APP SHELL ---
-class KatalogPOApp extends StatelessWidget {
-  const KatalogPOApp({super.key});
-  @override Widget build(BuildContext context){
-    return MaterialApp(
-      title: 'KATALOG+PO BABE PERKAKAS',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE05A2C)), useMaterial3: true),
-      home: const HomeShell(),
-    );
-  }
-}
-
-class HomeShell extends StatefulWidget { const HomeShell({super.key}); @override State<HomeShell> createState()=>_HomeShellState();}
-class _HomeShellState extends State<HomeShell> {
-  int index = 0;
-  @override Widget build(BuildContext context){
-    return Scaffold(
-      body: index == 0 ? const CatalogPage() : const HistoryPage(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i)=>setState(()=>index=i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Katalog'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'History PO'),
-        ],
-      ),
-    );
   }
 }
 
@@ -406,13 +520,8 @@ class _CatalogPageState extends State<CatalogPage> {
         icon: const Icon(Icons.add_a_photo),
         label: const Text('Tambah Produk'),
       ),
-      
-      // =======================================================================
-      // PERUBAHAN UTAMA: Menggunakan susunan Stack pada Body
-      // =======================================================================
       body: Stack(
         children: [
-          // LAYER 1: Background stay/diam di posisi awal (tidak ikut ter-scroll)
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -423,13 +532,10 @@ class _CatalogPageState extends State<CatalogPage> {
               ),
             ),
           ),
-
-          // LAYER 2: Area konten yang membungkus scroll dan bisa ditarik ke bawah
           SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             child: products.isEmpty
                 ? SizedBox(
-                    // Mengambil tinggi layar dikurangi perkiraan tinggi AppBar agar teks kosong pas di tengah
                     height: MediaQuery.of(context).size.height - 140,
                     child: Center(
                       child: Container(
@@ -447,9 +553,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const SizedBox(height: 8), // Sedikit celaka jarak dari atas
-                        
-                        // Kotak Pencarian & Tombol Sort
+                        const SizedBox(height: 8), 
                         Row(
                           children: [
                             Expanded(
@@ -460,7 +564,7 @@ class _CatalogPageState extends State<CatalogPage> {
                                   hintText: 'Cari nama produk...',
                                   prefixIcon: const Icon(Icons.search),
                                   filled: true,
-                                  fillColor: Colors.white.withOpacity(0.85), // Menambah kontras teks di atas background
+                                  fillColor: Colors.white.withOpacity(0.85), 
                                   suffixIcon: searchQuery.isNotEmpty
                                       ? IconButton(
                                           icon: const Icon(Icons.clear),
@@ -489,7 +593,6 @@ class _CatalogPageState extends State<CatalogPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Logika Filter Pencarian Kosong
                         if (displayProducts.isEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -502,7 +605,6 @@ class _CatalogPageState extends State<CatalogPage> {
                             ),
                           )
                         else
-                          // Looping List Produk
                           ...displayProducts.map((p) {
                             Widget imageWidget;
                             if (p.imagePath != null && File(p.imagePath!).existsSync()) {
@@ -574,6 +676,7 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 }
+
 // --- FORM TAMBAH & EDIT PRODUK ---
 class ProductFormPage extends StatefulWidget {
   final KatalogProduct? editProduct; 
@@ -586,7 +689,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   final deskripsiC = TextEditingController();
   final hargaNormalC = TextEditingController();
   final hargaPOC = TextEditingController();
-  
+
   bool get isEdit => widget.editProduct != null;
 
   @override
@@ -623,7 +726,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       hargaPenawaranKhusus: int.tryParse(hargaPOC.text)?? 0,
       salesId: globalSalesId,
     );
-    
+
     if (isEdit) {
       await DBHelper.instance.updateProduct(p); 
     } else {
@@ -651,7 +754,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
             : Image.file(File(imagePath!), fit: BoxFit.cover, width: double.infinity),
         ),
         const SizedBox(height: 10),
-        
+
         ElevatedButton.icon(
           onPressed: pickImage, 
           icon: const Icon(Icons.add_a_photo), 
@@ -659,7 +762,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade50, foregroundColor: Colors.blue.shade800),
         ),
         const SizedBox(height: 20),
-        
+
         TextField(controller: namaC, keyboardAppearance: Brightness.light, decoration: const InputDecoration(labelText: "Nama Produk", border: OutlineInputBorder())),
         const SizedBox(height: 12),
         TextField(controller: deskripsiC, keyboardAppearance: Brightness.light, decoration: const InputDecoration(labelText: "Deskripsi", border: OutlineInputBorder()), maxLines: 3),
@@ -668,7 +771,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
         const SizedBox(height: 12),
         TextField(controller: hargaPOC, keyboardType: TextInputType.number, keyboardAppearance: Brightness.light, decoration: const InputDecoration(labelText: "Harga Penawaran Khusus", border: OutlineInputBorder())),
         const SizedBox(height: 24),
-        
+
         FilledButton(
           onPressed: save, 
           style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
@@ -854,7 +957,7 @@ class HistoryPage extends StatefulWidget { const HistoryPage({super.key}); @over
 class _HistoryPageState extends State<HistoryPage> {
   List<POHistory> history = []; bool loading = true;
   @override void initState() { super.initState(); loadHistory(); }
-  
+
   Future<void> loadHistory() async { 
     if(!mounted) return;
     setState(()=>loading=true); 
@@ -862,7 +965,7 @@ class _HistoryPageState extends State<HistoryPage> {
     if(!mounted) return;
     setState(() { history = list; loading = false; }); 
   }
-  
+
   Future<void> editPO(POHistory po) async { 
     final updated = await Navigator.push(context, MaterialPageRoute(builder: (_)=> POFormPage(editPO: po))); 
     if(updated == true) loadHistory(); 
@@ -871,7 +974,7 @@ class _HistoryPageState extends State<HistoryPage> {
   @override Widget build(BuildContext context){
     final Map<String, List<POHistory>> grouped = {};
     for(final po in history){ final key = formatTanggal.format(po.tanggal); grouped.putIfAbsent(key, ()=>[]).add(po); }
-    
+
     return Scaffold(
       appBar: AppBar(title: const Text('History PO', style: TextStyle(fontWeight: FontWeight.w700))),
       body: loading? const Center(child: CircularProgressIndicator())
