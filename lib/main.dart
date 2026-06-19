@@ -386,7 +386,7 @@ class DBHelper {
   }
 }
 
-// --// --- HALAMAN KATALOG ---
+// --- HALAMAN KATALOG ---
 class CatalogPage extends StatefulWidget {
   const CatalogPage({super.key});
 
@@ -503,7 +503,7 @@ class _CatalogPageState extends State<CatalogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // POIN 5: Menggunakan warna background utama default bawaan aplikasi
+      // POIN 5: Background utama otomatis memakai warna default bawaan tema/Scaffold
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,19 +521,18 @@ class _CatalogPageState extends State<CatalogPage> {
         icon: const Icon(Icons.add_a_photo),
         label: const Text('Tambah Produk'),
       ),
-      // Menggunakan CustomScrollView agar komponen sliver di dalamnya bisa saling berinteraksi saat di-scroll
-      body: CustomScrollView(
-        // POIN 1 & 2: Kunci scroll jika produk kosong. Aktifkan bouncynya jika sudah ada produk.
+      body: SingleChildScrollView(
+        // POIN 1 & 2: Jika produk kosong, scroll dikunci mati (NeverScrollable). Jika ada produk, otomatis bisa di-scroll.
         physics: products.isEmpty
             ? const NeverScrollableScrollPhysics()
             : const BouncingScrollPhysics(),
-        slivers: [
-          
-          // POIN 4 (Urutan 1): Banner bgdt.png berada paling atas di area scrollable
-          SliverToBoxAdapter(
-            child: Container(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // POIN 4: Banner bgdt.png dimasukkan ke dalam Column scroll (bukan Stack latar belakang lagi)
+            Container(
               width: double.infinity,
-              height: 180,
+              height: 180, // Tinggi area banner gambar
               decoration: const BoxDecoration(
                 image: DecorationImage(
                   image: AssetImage('assets/images/bgdt.png'),
@@ -541,165 +540,145 @@ class _CatalogPageState extends State<CatalogPage> {
                 ),
               ),
             ),
-          ),
 
-          // POIN 4 (Urutan 2) & POIN 5: Fitur Search Filter yang otomatis "nyangkut" di bawah AppBar
-          SliverPersistentHeader(
-            pinned: true, // Ini kuncinya agar dia tetap diam/menempel saat di-scroll ke atas
-            delegate: _StickySearchDelegate(
-              height: 70.0,
-              child: Row(
+            // Area konten pencarian dan list produk katalog
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: searchController,
-                      keyboardAppearance: Brightness.light,
-                      decoration: InputDecoration(
-                        hintText: 'Cari nama produk...',
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        suffixIcon: searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  setState(() {
-                                    searchQuery = '';
-                                    searchController.clear();
-                                  });
-                                },
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                      ),
-                      onChanged: (val) => setState(() => searchQuery = val),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filledTonal(
-                    icon: Icon(isSortedAZ ? Icons.sort_by_alpha : Icons.import_export),
-                    isSelected: isSortedAZ,
-                    onPressed: () => setState(() => isSortedAZ = !isSortedAZ),
-                    tooltip: isSortedAZ ? 'Urutan: A-Z' : 'Urutan: Default',
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // POIN 4 (Urutan 3) & POIN 3: Area List Produk Katalog sampai batas terbawah (Bottom Bar)
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            sliver: _buildSliverContent(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Fungsi pembantu untuk merender isi konten produk / kondisi kosong ke dalam bentuk Sliver
-  Widget _buildSliverContent() {
-    if (products.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40),
-          child: Center(
-            child: Text(
-              'Belum ada produk.\nTap Tambah Produk untuk mulai.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade600),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (displayProducts.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40),
-          child: Column(
-            children: [
-              Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
-              const SizedBox(height: 8),
-              Text('Produk "$searchQuery" tidak ditemukan', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final p = displayProducts[index];
-          Widget imageWidget;
-          if (p.imagePath != null && File(p.imagePath!).existsSync()) {
-            imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
-          } else {
-            imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
-          }
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: InteractiveViewer(child: imageWidget),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Kotak Pencarian & Tombol Sort
+                  Row(
                     children: [
-                      Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-                      const SizedBox(height: 6),
-                      Text(p.deskripsi),
-                      const SizedBox(height: 10),
-                      const Text('Harga Umum', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          FilledButton.icon(
-                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => POFormPage(pilihProdukAwal: p))),
-                            icon: const Icon(Icons.edit_note),
-                            label: const Text('Buat PO'),
+                      Expanded(
+                        child: TextField(
+                          controller: searchController,
+                          keyboardAppearance: Brightness.light,
+                          decoration: InputDecoration(
+                            hintText: 'Cari nama produk...',
+                            prefixIcon: const Icon(Icons.search),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            suffixIcon: searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        searchQuery = '';
+                                        searchController.clear();
+                                      });
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
                           ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
-                                tooltip: 'Edit / Revisi Produk',
-                                onPressed: () => editProduct(p),
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
-                                tooltip: 'Hapus Produk',
-                                onPressed: () => konfirmasiHapus(p.dbId),
-                              ),
-                            ],
-                          ),
-                        ],
+                          onChanged: (val) => setState(() => searchQuery = val),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: Icon(isSortedAZ ? Icons.sort_by_alpha : Icons.import_export),
+                        isSelected: isSortedAZ,
+                        onPressed: () => setState(() => isSortedAZ = !isSortedAZ),
+                        tooltip: isSortedAZ ? 'Urutan: A-Z' : 'Urutan: Default',
                       ),
                     ],
                   ),
-                )
-              ],
+                  const SizedBox(height: 16),
+
+                  // Kondisi jika data kosong di database
+                  if (products.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Text(
+                          'Belum ada produk.\nTap Tambah Produk untuk mulai.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                        ),
+                      ),
+                    )
+                  // Kondisi jika hasil pencarian keyword tidak ketemu
+                  else if (displayProducts.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Column(
+                        children: [
+                          Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                          const SizedBox(height: 8),
+                          Text('Produk "$searchQuery" tidak ditemukan', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    )
+                  // POIN 3: Menampilkan list produk. Saat di-scroll ke atas, item bergerak naik normal hingga produk paling akhir.
+                  else
+                    ...displayProducts.map((p) {
+                      Widget imageWidget;
+                      if (p.imagePath != null && File(p.imagePath!).existsSync()) {
+                        imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
+                      } else {
+                        imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
+                      }
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: InteractiveViewer(child: imageWidget),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
+                                  const SizedBox(height: 6),
+                                  Text(p.deskripsi),
+                                  const SizedBox(height: 10),
+                                  const Text('Harga Umum', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                  Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => POFormPage(pilihProdukAwal: p))),
+                                        icon: const Icon(Icons.edit_note),
+                                        label: const Text('Buat PO'),
+                                      ),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
+                                            tooltip: 'Edit / Revisi Produk',
+                                            onPressed: () => editProduct(p),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
+                                            tooltip: 'Hapus Produk',
+                                            onPressed: () => konfirmasiHapus(p.dbId),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                ],
+              ),
             ),
-          );
-        },
-        childCount: displayProducts.length,
+          ],
+        ),
       ),
     );
   }
