@@ -388,9 +388,6 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   Widget build(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
-    final isLandscape = mediaQuery.orientation == Orientation.landscape;
-
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -409,32 +406,50 @@ class _CatalogPageState extends State<CatalogPage> {
         icon: const Icon(Icons.add_a_photo),
         label: const Text('Tambah Produk'),
       ),
-      body: products.isEmpty
-          ? Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: const BoxDecoration(image: DecorationImage(image: AssetImage('assets/images/bgdt.png'), fit: BoxFit.cover)),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(12)),
-                  child: const Text('Belum ada produk.\nTap Tambah Produk untuk mulai.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
+      
+      // =======================================================================
+      // PERUBAHAN UTAMA: Menggunakan susunan Stack pada Body
+      // =======================================================================
+      body: Stack(
+        children: [
+          // LAYER 1: Background stay/diam di posisi awal (tidak ikut ter-scroll)
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/bgdt.png'),
+                fit: BoxFit.cover,
               ),
-            )
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  Container(
-                    height: isLandscape ? mediaQuery.size.height * 0.5 : 240,
-                    width: double.infinity,
-                    decoration: const BoxDecoration(image: DecorationImage(image: AssetImage('assets/images/bgdt.png'), fit: BoxFit.cover)),
-                  ),
-                  Padding(
+            ),
+          ),
+
+          // LAYER 2: Area konten yang membungkus scroll dan bisa ditarik ke bawah
+          SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            child: products.isEmpty
+                ? SizedBox(
+                    // Mengambil tinggi layar dikurangi perkiraan tinggi AppBar agar teks kosong pas di tengah
+                    height: MediaQuery.of(context).size.height - 140,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(12)),
+                        child: const Text(
+                          'Belum ada produk.\nTap Tambah Produk untuk mulai.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  )
+                : Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // Kotak Pencarian & Tombol Sort yang sudah menyatu dan rapi
+                        const SizedBox(height: 8), // Sedikit celaka jarak dari atas
+                        
+                        // Kotak Pencarian & Tombol Sort
                         Row(
                           children: [
                             Expanded(
@@ -444,6 +459,8 @@ class _CatalogPageState extends State<CatalogPage> {
                                 decoration: InputDecoration(
                                   hintText: 'Cari nama produk...',
                                   prefixIcon: const Icon(Icons.search),
+                                  filled: true,
+                                  fillColor: Colors.white.withOpacity(0.85), // Menambah kontras teks di atas background
                                   suffixIcon: searchQuery.isNotEmpty
                                       ? IconButton(
                                           icon: const Icon(Icons.clear),
@@ -471,7 +488,8 @@ class _CatalogPageState extends State<CatalogPage> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        
+
+                        // Logika Filter Pencarian Kosong
                         if (displayProducts.isEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -484,6 +502,7 @@ class _CatalogPageState extends State<CatalogPage> {
                             ),
                           )
                         else
+                          // Looping List Produk
                           ...displayProducts.map((p) {
                             Widget imageWidget;
                             if (p.imagePath != null && File(p.imagePath!).existsSync()) {
@@ -549,9 +568,9 @@ class _CatalogPageState extends State<CatalogPage> {
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
+          ),
+        ],
+      ),
     );
   }
 }
