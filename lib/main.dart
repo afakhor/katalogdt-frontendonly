@@ -387,6 +387,9 @@ class DBHelper {
 }
 
 
+import 'dart:io'; 
+import 'package:flutter/material.dart';
+
 // --- HALAMAN KATALOG ---
 class CatalogPage extends StatefulWidget {
   const CatalogPage({super.key});
@@ -522,21 +525,25 @@ class _CatalogPageState extends State<CatalogPage> {
         label: const Text('Tambah Produk'),
       ),
       
-      // Menggunakan LayoutBuilder agar kalkulasi tinggi layar akurat memotong tinggi Bottom Navigation Bar
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Mendapatkan tinggi bersih mutlak dari bawah AppBar hingga atas Home Shell Navigation
           final double clearBodyHeight = constraints.maxHeight;
+          final double clearBodyWidth = constraints.maxWidth;
 
-          // ATURAN 1: Jika produk kosong, kunci layar secara absolut (tidak bisa di-scroll)
+          // LOGIKAL ADAPTIVE BANNER (Deteksi Orientasi Layar)
+          final bool isLandscape = clearBodyWidth > clearBodyHeight;
+          final Alignment adaptiveAlignment = isLandscape ? Alignment.center : Alignment.topCenter;
+
+          // ATURAN 1: Jika produk kosong, kunci layar secara absolut (Full Wallpaper)
           if (products.isEmpty) {
             return Container(
               width: double.infinity,
               height: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage('assets/images/bgdt.png'),
+                  image: const AssetImage('assets/images/bgdt.png'),
                   fit: BoxFit.cover,
+                  alignment: adaptiveAlignment,
                 ),
               ),
               child: Center(
@@ -557,26 +564,27 @@ class _CatalogPageState extends State<CatalogPage> {
             );
           }
           
-          // ATURAN 2 & 3: Jika sudah ada produk, jalankan efek scroll view dengan tinggi banner presisi
+          // ATURAN 2 & 3: Jika sudah ada produk, aktifkan CustomScrollView
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
               
-              // Banner Utama diatur pas setinggi area kosong layar HP
+              // Banner Utama otomatis presisi setinggi sisa ruang layar kerja
               SliverToBoxAdapter(
                 child: Container(
                   width: double.infinity,
                   height: clearBodyHeight, 
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage('assets/images/bgdt.png'),
+                      image: const AssetImage('assets/images/bgdt.png'),
                       fit: BoxFit.cover,
+                      alignment: adaptiveAlignment,
                     ),
                   ),
                 ),
               ),
 
-              // Fitur Search Filter & Sort (Nyangkut di bawah AppBar saat scroll ke atas)
+              // Fitur Search Filter & Sort (Nyangkut/Sticky di bawah AppBar)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _StickySearchDelegate(
@@ -627,7 +635,7 @@ class _CatalogPageState extends State<CatalogPage> {
                 ),
               ),
 
-              // Konten List Produk Katalog
+              // Konten List Produk Katalog berbentuk Sliver
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 sliver: _buildSliverContent(),
@@ -746,7 +754,7 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: child,
+      child: child, // Sudah diperbaiki menggunakan tanda koma (,)
     );
   }
 
@@ -755,6 +763,7 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
     return true; 
   }
 }
+
 // --- FORM TAMBAH & EDIT PRODUK ---
 class ProductFormPage extends StatefulWidget {
   final KatalogProduct? editProduct; 
