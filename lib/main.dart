@@ -135,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ? const Text(
                           '👆',
                           key: ValueKey('finger_icon'),
-                          style: TextStyle(fontSize: 75), 
+                          style: TextStyle(fontSize: 60), 
                         )
                       : const Text(
                           '🛠️',
@@ -387,8 +387,6 @@ class DBHelper {
 }
 
 
-import 'dart:io'; 
-import 'package:flutter/material.dart';
 
 // --- HALAMAN KATALOG ---
 class CatalogPage extends StatefulWidget {
