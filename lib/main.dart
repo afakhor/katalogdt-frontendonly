@@ -386,7 +386,7 @@ class DBHelper {
   }
 }
 
-// --- HALAMAN KATALOG ---
+// --// --- HALAMAN KATALOG ---
 class CatalogPage extends StatefulWidget {
   const CatalogPage({super.key});
 
@@ -503,6 +503,7 @@ class _CatalogPageState extends State<CatalogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // POIN 5: Menggunakan warna background utama default bawaan aplikasi
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,163 +521,218 @@ class _CatalogPageState extends State<CatalogPage> {
         icon: const Icon(Icons.add_a_photo),
         label: const Text('Tambah Produk'),
       ),
-      body: Stack(
-        children: [
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/bgdt.png'),
-                fit: BoxFit.cover,
+      // Menggunakan CustomScrollView agar komponen sliver di dalamnya bisa saling berinteraksi saat di-scroll
+      body: CustomScrollView(
+        // POIN 1 & 2: Kunci scroll jika produk kosong. Aktifkan bouncynya jika sudah ada produk.
+        physics: products.isEmpty
+            ? const NeverScrollableScrollPhysics()
+            : const BouncingScrollPhysics(),
+        slivers: [
+          
+          // POIN 4 (Urutan 1): Banner bgdt.png berada paling atas di area scrollable
+          SliverToBoxAdapter(
+            child: Container(
+              width: double.infinity,
+              height: 180,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/bgdt.png'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
-          SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            child: products.isEmpty
-                ? SizedBox(
-                    height: MediaQuery.of(context).size.height - 140,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(12)),
-                        child: const Text(
-                          'Belum ada produk.\nTap Tambah Produk untuk mulai.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 8), 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: searchController,
-                                keyboardAppearance: Brightness.light,
-                                decoration: InputDecoration(
-                                  hintText: 'Cari nama produk...',
-                                  prefixIcon: const Icon(Icons.search),
-                                  filled: true,
-                                  fillColor: Colors.white.withOpacity(0.85), 
-                                  suffixIcon: searchQuery.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear),
-                                          onPressed: () {
-                                            setState(() {
-                                              searchQuery = '';
-                                              searchController.clear();
-                                            });
-                                          },
-                                        )
-                                      : null,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                                ),
-                                onChanged: (val) => setState(() => searchQuery = val),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton.filledTonal(
-                              icon: Icon(isSortedAZ ? Icons.sort_by_alpha : Icons.import_export),
-                              isSelected: isSortedAZ,
-                              onPressed: () => setState(() => isSortedAZ = !isSortedAZ),
-                              tooltip: isSortedAZ ? 'Urutan: A-Z' : 'Urutan: Default',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
 
-                        if (displayProducts.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 40),
-                            child: Column(
-                              children: [
-                                Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 8),
-                                Text('Produk "$searchQuery" tidak ditemukan', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                              ],
-                            ),
-                          )
-                        else
-                          ...displayProducts.map((p) {
-                            Widget imageWidget;
-                            if (p.imagePath != null && File(p.imagePath!).existsSync()) {
-                              imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
-                            } else {
-                              imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
-                            }
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              clipBehavior: Clip.antiAlias,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  AspectRatio(
-                                    aspectRatio: 16 / 9,
-                                    child: InteractiveViewer(child: imageWidget),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-                                        const SizedBox(height: 6),
-                                        Text(p.deskripsi),
-                                        const SizedBox(height: 10),
-                                        const Text('Harga Umum', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                        Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            FilledButton.icon(
-                                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => POFormPage(pilihProdukAwal: p))),
-                                              icon: const Icon(Icons.edit_note),
-                                              label: const Text('Buat PO'),
-                                            ),
-                                            Row(
-                                              children: [
-                                                IconButton(
-                                                  icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
-                                                  tooltip: 'Edit / Revisi Produk',
-                                                  onPressed: () => editProduct(p),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                IconButton(
-                                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
-                                                  tooltip: 'Hapus Produk',
-                                                  onPressed: () => konfirmasiHapus(p.dbId),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                      ],
+          // POIN 4 (Urutan 2) & POIN 5: Fitur Search Filter yang otomatis "nyangkut" di bawah AppBar
+          SliverPersistentHeader(
+            pinned: true, // Ini kuncinya agar dia tetap diam/menempel saat di-scroll ke atas
+            delegate: _StickySearchDelegate(
+              height: 70.0,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      keyboardAppearance: Brightness.light,
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama produk...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() {
+                                    searchQuery = '';
+                                    searchController.clear();
+                                  });
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                      ),
+                      onChanged: (val) => setState(() => searchQuery = val),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    icon: Icon(isSortedAZ ? Icons.sort_by_alpha : Icons.import_export),
+                    isSelected: isSortedAZ,
+                    onPressed: () => setState(() => isSortedAZ = !isSortedAZ),
+                    tooltip: isSortedAZ ? 'Urutan: A-Z' : 'Urutan: Default',
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // POIN 4 (Urutan 3) & POIN 3: Area List Produk Katalog sampai batas terbawah (Bottom Bar)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            sliver: _buildSliverContent(),
           ),
         ],
       ),
     );
   }
+
+  // Fungsi pembantu untuk merender isi konten produk / kondisi kosong ke dalam bentuk Sliver
+  Widget _buildSliverContent() {
+    if (products.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Center(
+            child: Text(
+              'Belum ada produk.\nTap Tambah Produk untuk mulai.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (displayProducts.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            children: [
+              Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+              const SizedBox(height: 8),
+              Text('Produk "$searchQuery" tidak ditemukan', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final p = displayProducts[index];
+          Widget imageWidget;
+          if (p.imagePath != null && File(p.imagePath!).existsSync()) {
+            imageWidget = Image.file(File(p.imagePath!), fit: BoxFit.cover, width: double.infinity);
+          } else {
+            imageWidget = Container(color: Colors.grey.shade200, child: const Icon(Icons.image, size: 48));
+          }
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: InteractiveViewer(child: imageWidget),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.namaProduk, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
+                      const SizedBox(height: 6),
+                      Text(p.deskripsi),
+                      const SizedBox(height: 10),
+                      const Text('Harga Umum', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(formatRp.format(p.hargaNormal), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => POFormPage(pilihProdukAwal: p))),
+                            icon: const Icon(Icons.edit_note),
+                            label: const Text('Buat PO'),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
+                                tooltip: 'Edit / Revisi Produk',
+                                onPressed: () => editProduct(p),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
+                                tooltip: 'Hapus Produk',
+                                onPressed: () => konfirmasiHapus(p.dbId),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          );
+        },
+        childCount: displayProducts.length,
+      ),
+    );
+  }
 }
 
+// --- DELEGATE KHUSUS UNTUK MEMBUAT FILTER PENCARIAN MENJADI STICKY (NYANGKUT) ---
+class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickySearchDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      // Memakai warna background Scaffold agar saat produk digulung ke atas, tidak tembus pandang ke teks filter
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickySearchDelegate oldDelegate) {
+    // Di-set true agar perubahan ketikan kolom search & icon sort langsung ter-update di layar secara real-time
+    return true; 
+  }
+}
 // --- FORM TAMBAH & EDIT PRODUK ---
 class ProductFormPage extends StatefulWidget {
   final KatalogProduct? editProduct; 
