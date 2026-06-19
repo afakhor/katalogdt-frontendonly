@@ -746,7 +746,7 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: child;
+      child: child,
     );
   }
 
